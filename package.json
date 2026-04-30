@@ -1,0 +1,27 @@
+{
+  "name": "craft-cli",
+  "version": "1.0.0",
+  "description": "Hand-crafted agent in your terminal.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gh-zhw/craft-cli.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gh-zhw/craft-cli/issues"
+  },
+  "homepage": "https://github.com/gh-zhw/craft-cli#readme",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
