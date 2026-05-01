@@ -33,6 +33,7 @@ export async function agentLoop(
         role: 'assistant',
         content: response.text,
         toolCalls: response.toolCalls,
+        contentBlocks: response.contentBlocks,
       })
 
       // Execute each tool and feed the results back
@@ -45,7 +46,6 @@ export async function agentLoop(
         console.log(`[Agent Loop] Calling tool: ${tc.name} with`, tc.arguments)
 
         const result = await tool.execute(tc.arguments, context)
-
         messages.push({
           role: 'tool',
           content: result,
@@ -55,6 +55,12 @@ export async function agentLoop(
 
       continue;
     }
+
+    messages.push({
+      role: 'assistant',
+      content: response.text,
+      contentBlocks: response.contentBlocks,
+    });
 
     return response.text
   }

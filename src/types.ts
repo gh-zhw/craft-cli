@@ -29,6 +29,7 @@ export interface Message {
   tool_call_id?: string;
   name?: string;
   toolCalls?: ToolCall[];
+  contentBlocks?: any[];  // Anthropic.ContentBlock[]
 }
 
 // ---------- Tool Call Block ----------
@@ -45,4 +46,5 @@ export interface LLMResponse {
   toolCalls: ToolCall[];
   stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop_sequence';
   usage: { input: number; output: number };
+  contentBlocks: any[];  // Anthropic.ContentBlock[]
 }

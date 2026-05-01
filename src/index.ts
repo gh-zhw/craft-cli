@@ -21,7 +21,9 @@ async function main() {
   console.log('craft-cli is ready.\n')
 
   // Initialize LLM provider (reads ANTHROPIC_API_KEY from env)
-  const provider = new LLMProvider()
+  const provider = new LLMProvider({
+    thinking: {type: 'disabled'},
+  })
 
   // Set up tool registry
   const registry = createToolRegistry()

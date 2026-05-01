@@ -7,11 +7,18 @@ export interface LLMProviderOptions {
   apiKey?: string;
   model?: string;
   baseUrl?: string;
+  /**
+   * Anthropic extended thinking configuration
+   * Default: { type: "disabled" }
+   * Set to e.g., { type: "enabled", budget_tokens: 4000 } to activate
+   */
+  thinking?: Anthropic.ThinkingConfigParam;
 }
 
 export class LLMProvider {
   private client: Anthropic
   private model: string
+  private thinkingConfig: Anthropic.ThinkingConfigParam
 
   constructor(options: LLMProviderOptions = {}) {
     const baseUrl = options.baseUrl ?? process.env.ANTHROPIC_BASE_URL;
@@ -25,6 +32,7 @@ export class LLMProvider {
       apiKey: apiKey
     })
     this.model = options.model ?? process.env.ANTHROPIC_MODEL ?? 'deepseek-v4-flash';
+    this.thinkingConfig = options.thinking ?? { type: 'disabled' };
   }
 
   /**
@@ -40,49 +48,7 @@ export class LLMProvider {
   ): Promise<LLMResponse> {
     // Separate system message (Anthropic expects it as a top-level parameter)
     const systemMessage = messages.find((m) => m.role === 'system')
-    const chatMessages: Anthropic.MessageParam[] = messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => {
-        // Tool Result Message: The tool_result content block must be used
-        if (m.role === 'tool' && m.tool_call_id) {
-          return {
-            role: 'user',
-            content: [
-              {
-                type: 'tool_result',
-                tool_use_id: m.tool_call_id,
-                content: m.content,
-              },
-            ],
-          }
-        }
-        
-        // Assistant message: If it includes tool calls, splice the text tool_use block
-        if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
-          const blocks: Anthropic.ContentBlock[] = []
-          if (m.content) {
-            blocks.push({
-              type: 'text',
-              text: m.content,
-            } as Anthropic.Messages.TextBlock)
-          }
-          for (const tc of m.toolCalls) {
-            blocks.push({
-              type: 'tool_use',
-              id: tc.id,
-              name: tc.name,
-              input: tc.arguments,
-            } as Anthropic.Messages.ToolUseBlock)
-          }
-          return { role: 'assistant', content: blocks }
-        }
-
-        // Regular text message
-        return {
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }
-      })
+    const chatMessages = this.convertMessages(messages)
 
     const stream = this.client.messages.stream({
       model: this.model,
@@ -90,7 +56,7 @@ export class LLMProvider {
       system: systemMessage?.content,
       messages: chatMessages,
       tools: tools.length > 0 ? tools : undefined,
-      thinking: { type: "disabled" },
+      thinking: this.thinkingConfig,
     })
 
     // Wait for the complete messsage (event stream consumed internally)
@@ -99,6 +65,7 @@ export class LLMProvider {
     // Parse text and tool calls from the content blocks
     let text = ''
     const toolCalls: ToolCall[] = []
+    const contentBlocks = finalMessage.content;
 
     for (const block of finalMessage.content) {
       if (block.type === 'text') {
@@ -128,6 +95,59 @@ export class LLMProvider {
         input: finalMessage.usage.input_tokens,
         output: finalMessage.usage.output_tokens,
       },
+      contentBlocks,
     }
+  }
+
+  /**
+  * Convert our internal Message[] to Anthropic SDK MessageParam[].
+  * Handles tool results, assistant messages with contentBlocks, and plain text.
+  */
+  private convertMessages(messages: Message[]): Anthropic.MessageParam[] {
+    return messages
+      .filter((m) => m.role !== 'system')
+      .map((m): Anthropic.MessageParam => {
+        // Tool result messages
+        if (m.role === 'tool' && m.tool_call_id) {
+          return {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: m.tool_call_id,
+                content: m.content,
+              },
+            ],
+          }
+        }
+        // Assistant message with stored content blocks (including thinking)
+        if (m.role === 'assistant' && m.contentBlocks && m.contentBlocks.length > 0) {
+          return { role: 'assistant', content: m.contentBlocks }
+        }
+        // Assistant message with toolCalls but no contentBlocks (fallback for older messages)
+        if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+          const blocks: Anthropic.ContentBlock[] = []
+          if (m.content) {
+            blocks.push({
+              type: 'text',
+              text: m.content
+            } as Anthropic.Messages.TextBlock)
+          }
+          for (const tc of m.toolCalls) {
+            blocks.push({
+              type: 'tool_use',
+              id: tc.id,
+              name: tc.name,
+              input: tc.arguments,
+            } as Anthropic.Messages.ToolUseBlock)
+          }
+          return { role: 'assistant', content: blocks }
+        }
+        // Plain user or assistant message (no tools, no contentBlocks)
+        return {
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }
+      })
   }
 }
