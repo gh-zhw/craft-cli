@@ -1,7 +1,6 @@
 // src/llm/provider.ts
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic from '@anthropic-ai/sdk'
 import type { Message, ToolCall, LLMResponse } from '../types.js'
-import { z } from 'zod'
 
 export interface LLMProviderOptions {
   apiKey?: string;

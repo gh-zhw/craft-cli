@@ -1,8 +1,8 @@
 // src/tools/read-file.ts
-import { z } from 'zod';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import type { Tool } from '../types.js';
+import { z } from 'zod'
+import { readFileSync } from 'node:fs'
+import { validatePath } from '../utils/guard.js'
+import type { Tool } from '../types.js'
 
 
 const paramsSchema = z.object({
@@ -14,7 +14,7 @@ export const readFileTool: Tool<z.input<typeof paramsSchema>> = {
   description: 'Read the contents of a file',
   parameters: paramsSchema,
   async execute(args, ctx) {
-    const fullPath = resolve(ctx.workspaceRoot, args.path)
+    const fullPath = validatePath(args.path, ctx.workspaceRoot)
     const content = readFileSync(fullPath, 'utf-8')
     return content
   }

@@ -1,7 +1,7 @@
 // src/tools/registry.ts
-import { z } from 'zod';
-import type { Tool } from '../types.js';
-import type Anthropic from '@anthropic-ai/sdk';
+import { z } from 'zod'
+import type { Tool } from '../types.js'
+import type Anthropic from '@anthropic-ai/sdk'
 
 export type ToolRegistry = Map<string, Tool>
 

@@ -1,8 +1,9 @@
 // src/tools/write-file.ts
-import { z } from 'zod';
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import type { Tool } from '../types.js';
+import { z } from 'zod'
+import { writeFileSync, mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { validatePath } from '../utils/guard.js'
+import type { Tool } from '../types.js'
 
 
 const paramsSchema = z.object({
@@ -15,7 +16,7 @@ export const writeFileTool: Tool<z.input<typeof paramsSchema>> = {
   description: 'Write content to a file (creates or overwrites)',
   parameters: paramsSchema,
   async execute(args, ctx) {
-    const fullPath = resolve(ctx.workspaceRoot, args.path)
+    const fullPath = validatePath(args.path, ctx.workspaceRoot)
     mkdirSync(dirname(fullPath), { recursive: true })
     writeFileSync(fullPath, args.content, 'utf-8')
     return `Successfully wrote to #{args.path}`

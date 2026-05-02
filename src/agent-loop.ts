@@ -1,8 +1,8 @@
 // src/agent-loop.ts
-import type { Message, ToolContext, LLMResponse } from './types.js';
-import type { LLMProvider } from './llm/provider.js';
-import type { ToolRegistry } from './tools/registry.js';
-import { getToolSchemas } from './tools/registry.js';
+import type { Message, ToolContext, LLMResponse } from './types.js'
+import type { LLMProvider } from './llm/provider.js'
+import type { ToolRegistry } from './tools/registry.js'
+import { getToolSchemas } from './tools/registry.js'
 
 export async function agentLoop(
   provider: LLMProvider,
@@ -45,7 +45,14 @@ export async function agentLoop(
 
         console.log(`[Agent Loop] Calling tool: ${tc.name} with`, tc.arguments)
 
-        const result = await tool.execute(tc.arguments, context)
+        let result: string;
+        try {
+          result = await tool.execute(tc.arguments, context);
+        } catch (err: any) {
+          result = `Tool execution failed: ${err.message}`;
+        }
+        console.log(`[Tool Result] ${tc.name}:`, result);
+
         messages.push({
           role: 'tool',
           content: result,
