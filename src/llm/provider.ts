@@ -14,6 +14,10 @@ export interface LLMProviderOptions {
   thinking?: Anthropic.ThinkingConfigParam;
 }
 
+export interface ChatCallbacks {
+  onText?: (chunk: string) => void;  // stream text delta
+}
+
 export class LLMProvider {
   private client: Anthropic
   private model: string
@@ -44,6 +48,7 @@ export class LLMProvider {
   async chat(
     messages: Message[],
     tools: Anthropic.Tool[],
+    callbacks?: ChatCallbacks,
   ): Promise<LLMResponse> {
     // Separate system message (Anthropic expects it as a top-level parameter)
     const systemMessage = messages.find((m) => m.role === 'system')
@@ -58,18 +63,29 @@ export class LLMProvider {
       thinking: this.thinkingConfig,
     })
 
-    // Wait for the complete messsage (event stream consumed internally)
+    // Accumulate full text and stream text delta to callbacks
+    let fullText = ''
+    const toolCalls: ToolCall[] = []
+
+    for await (const event of stream) {
+      if (
+        event.type === 'content_block_delta' &&
+        event.delta.type === 'text_delta'
+      ) {
+        const chunk = event.delta.text
+        fullText += chunk
+        if (callbacks?.onText) {
+          callbacks.onText(chunk)
+        }
+      }
+    }
+
     const finalMessage = await stream.finalMessage()
 
-    // Parse text and tool calls from the content blocks
-    let text = ''
-    const toolCalls: ToolCall[] = []
+    // Extract tool calls from final content blocks
     const contentBlocks = finalMessage.content;
-
     for (const block of finalMessage.content) {
-      if (block.type === 'text') {
-        text += block.text;
-      } else if (block.type === 'tool_use') {
+      if (block.type === 'tool_use') {
         toolCalls.push({
           id: block.id,
           name: block.name,
@@ -87,7 +103,7 @@ export class LLMProvider {
     }
 
     return {
-      text,
+      text: fullText,
       toolCalls,
       stopReason: stopReasonMap[finalMessage.stop_reason ?? 'end_turn'],
       usage: {
@@ -103,50 +119,82 @@ export class LLMProvider {
   * Handles tool results, assistant messages with contentBlocks, and plain text.
   */
   private convertMessages(messages: Message[]): Anthropic.MessageParam[] {
-    return messages
-      .filter((m) => m.role !== 'system')
-      .map((m): Anthropic.MessageParam => {
-        // Tool result messages
-        if (m.role === 'tool' && m.tool_call_id) {
-          return {
-            role: 'user',
-            content: [
-              {
-                type: 'tool_result',
-                tool_use_id: m.tool_call_id,
-                content: m.content,
-              },
-            ],
-          }
-        }
-        // Assistant message with stored content blocks (including thinking)
-        if (m.role === 'assistant' && m.contentBlocks && m.contentBlocks.length > 0) {
-          return { role: 'assistant', content: m.contentBlocks }
-        }
-        // Assistant message with toolCalls but no contentBlocks (fallback for older messages)
-        if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
-          const blocks: Anthropic.ContentBlock[] = []
-          if (m.content) {
-            blocks.push({
+    const result: Anthropic.MessageParam[] = [];
+    const msgs = messages.filter((m) => m.role !== 'system');
+    let i = 0;
+
+    while (i < msgs.length) {
+      const msg = msgs[i];
+
+      // Assistant message that contains tool calls
+      if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
+        // Build assistant content blocks
+        let assistantBlocks: Anthropic.ContentBlock[];
+        if (msg.contentBlocks && msg.contentBlocks.length > 0) {
+          assistantBlocks = msg.contentBlocks;
+        } else {
+          assistantBlocks = [];
+          if (msg.content) {
+            assistantBlocks.push({
               type: 'text',
-              text: m.content
-            } as Anthropic.Messages.TextBlock)
+              text: msg.content
+            } as Anthropic.Messages.ContentBlock);
           }
-          for (const tc of m.toolCalls) {
-            blocks.push({
+          for (const tc of msg.toolCalls) {
+            assistantBlocks.push({
               type: 'tool_use',
               id: tc.id,
               name: tc.name,
               input: tc.arguments,
-            } as Anthropic.Messages.ToolUseBlock)
+            } as Anthropic.Messages.ContentBlock);
           }
-          return { role: 'assistant', content: blocks }
         }
-        // Plain user or assistant message (no tools, no contentBlocks)
-        return {
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
+        result.push({ role: 'assistant', content: assistantBlocks });
+
+        // Collect consecutive tool result messages that follow this assistant
+        const toolResultBlocks: Anthropic.ToolResultBlockParam[] = [];
+        i++;
+        while (i < msgs.length && msgs[i].role === 'tool') {
+          const toolMsg = msgs[i];
+          if (toolMsg.tool_call_id) {
+            toolResultBlocks.push({
+              type: 'tool_result',
+              tool_use_id: toolMsg.tool_call_id,
+              content: toolMsg.content,
+            });
+          }
+          i++;
         }
-      })
+
+        // All tool results gathered – push a single user message containing them all
+        if (toolResultBlocks.length > 0) {
+          result.push({ role: 'user', content: toolResultBlocks });
+        }
+        continue;
+      }
+
+      // Standalone tool message (should not normally happen after proper merging)
+      if (msg.role === 'tool') {
+        if (msg.tool_call_id) {
+          result.push({
+            role: 'user',
+            content: [
+              { type: 'tool_result', tool_use_id: msg.tool_call_id, content: msg.content },
+            ],
+          });
+        }
+        i++;
+        continue;
+      }
+
+      // Plain user or assistant message (no tools)
+      result.push({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      });
+      i++;
+    }
+
+    return result;
   }
 }
