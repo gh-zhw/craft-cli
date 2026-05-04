@@ -87,7 +87,7 @@ export async function agentLoop(
           printToolCallEnd(tc.name, err.message, true)
           messages.push({
             role: 'tool',
-            content: `Error: #{err.message}`,
+            content: `Error: ${err.message}`,
             tool_call_id: tc.id
           })
         }
@@ -106,7 +106,6 @@ export async function agentLoop(
       printAssistantReplyStart();
       finishStream();
     }
-    const tokensUsed = response.usage.input + response.usage.output;
     printAssistantReplyEnd();
 
     // Append final assistant message to history

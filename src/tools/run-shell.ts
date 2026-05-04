@@ -32,9 +32,17 @@ export const runShellTool: Tool<z.input<typeof paramsSchema>> = {
   parameters: paramsSchema,
   async execute(args, ctx) {
     const command = sanitizeCommand(args.command)
-    if (isDangerousCommand(command)) {
-      return `Blocked: command matches dangerous pattern.`
+    const dangerous = isDangerousCommand(command)
+
+    // Ask user permission
+    let message = ''
+    if (dangerous) {
+      message = `⚠️  DANGEROUS COMMAND: \`${command}\`\nThis matches known dangerous patterns. Proceed?`
+    } else {
+      message = `Execute shell command: \`${command}\`?`
     }
+    const approved = await ctx.askApproval(message)
+    if (!approved) throw new Error('User denied the operation.')
 
     const timeoutSec = args.timeout ?? 30
     const timeoutMs = timeoutSec * 1000

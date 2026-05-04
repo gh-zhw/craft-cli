@@ -27,12 +27,11 @@ export const editFileTool: Tool<z.input<typeof paramsSchema>> = {
       throw new Error(`old_string appears ${occurrences} times in ${args.path}, must be unique.`)
     }
 
-    // Request user approval (currently always approves)
-    const approved = await ctx.askApproval(`Replace the unique occurrence of "${args.old_string}" with "${args.new_string}" in ${args.path}?`)
-
-    if (!approved) {
-      return 'Edit cancelled by user.'
-    }
+    // Ask user permission
+    const approved = await ctx.askApproval(
+      `Replace the unique occurrence of "${args.old_string}" with "${args.new_string}" in ${args.path}?`
+    )
+    if (!approved) throw new Error('User denied the operation.')
 
     const newContent = content.replace(args.old_string, args.new_string)
     writeFileSync(fullPath, newContent, 'utf-8')

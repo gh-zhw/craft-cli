@@ -17,6 +17,11 @@ export const writeFileTool: Tool<z.input<typeof paramsSchema>> = {
   parameters: paramsSchema,
   async execute(args, ctx) {
     const fullPath = validatePath(args.path, ctx.workspaceRoot)
+
+    // Ask user permission
+    const approved = await ctx.askApproval(`Write file "${args.path}"?`)
+    if (!approved) throw new Error('User denied the operation.')
+
     mkdirSync(dirname(fullPath), { recursive: true })
     writeFileSync(fullPath, args.content, 'utf-8')
     return `Successfully wrote to #{args.path}`

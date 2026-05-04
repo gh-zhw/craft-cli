@@ -10,54 +10,26 @@ import { grepTool } from './tools/grep.js';
 import { globTool } from './tools/glob.js';
 import { agentLoop } from './agent-loop.js'
 import type { Message, ToolContext } from './types.js';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   printAssistantHeader,
   printMarkdown,
-  printConfirm,
   printStatus,
+  printUserMessageStart,
+  printUserMessageEnd,
+  printUserMessage,
 } from './ui/chalk-ui.js';
+import { buildSystemPrompt } from './utils/config.js'
+import { createAskApproval } from './ui/approval.js'
 
 // Import .env
 import 'dotenv/config';
 
 const workspaceRoot = process.cwd()
 
-// Auto-approval for now
-const autoApprove: ToolContext['askApproval'] = async (msg: string) => {
-  printConfirm(msg);
-  return true;
-};
-
-const context: ToolContext = {
-  workspaceRoot,
-  askApproval: autoApprove,
-};
-
-// System prompt: combine AGENT.md (if exists) with base instructions
-function loadSystemPrompt(): string {
-  const agentMdPath = join(workspaceRoot, 'AGENT.md')
-  let projectPrompt = ''
-  if (existsSync(agentMdPath)) {
-    projectPrompt = readFileSync(agentMdPath, 'utf-8').trim()
-  }
-  const basePrompt = `You are craft-cli, a precise terminal assistant. You have access to tools for reading, writing, editing files, running shell commands, searching with grep, and finding files with glob.
-- Always use relative paths from the workspace root.
-- When editing files, ensure the old_string is unique.
-- Prefer safe commands, never execute dangerous ones.
-- Be concise and helpful.`
-
-  if (projectPrompt) {
-    return `${basePrompt}\n\nProject instructions (from AGENT.md):\n${projectPrompt}`
-  }
-  return basePrompt
-}
-
 async function main() {
   console.clear();
   printAssistantHeader();
-  console.log(); // blank line
+  console.log();
 
   // Initialize LLM provider (reads ANTHROPIC_API_KEY from env)
   const provider = new LLMProvider({
@@ -73,7 +45,7 @@ async function main() {
   registerTool(registry, grepTool)
   registerTool(registry, globTool)
 
-  const systemPrompt = loadSystemPrompt()
+  const systemPrompt = buildSystemPrompt(workspaceRoot);
   let messages: Message[] = [
     { role: 'system', content: systemPrompt }
   ]
@@ -87,11 +59,20 @@ async function main() {
     prompt: '\u001b[32m> \u001b[39m', // green prompt
   })
 
+  const context: ToolContext = {
+    workspaceRoot,
+    askApproval: createAskApproval(rl),
+  }
+
+  console.log('Type .exit to quit, .clear to reset context.\n')
+  printUserMessageStart()
   rl.prompt()
 
   rl.on('line', async (line) => {
     const input = line.trim()
+    printUserMessageEnd()
     if (!input) {
+      printUserMessageStart()
       rl.prompt()
       return
     }
@@ -106,6 +87,7 @@ async function main() {
       sessionTotalTokens = 0
       console.clear()
       printAssistantHeader();
+      printUserMessageStart()
       rl.prompt()
       return
     }
@@ -125,7 +107,7 @@ async function main() {
       console.error('Error:', error.message);
     }
 
-    console.log()
+    printUserMessageStart()
     rl.prompt();
   })
 
