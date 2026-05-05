@@ -12,7 +12,7 @@ export function createAskApproval(rl: readline.Interface): (message: string) => 
     pauseSpinner()
 
     return new Promise<boolean>((resolve) => {
-      rl.question(chalk.yellow('? ') + message + chalk.dim(' (y/n) '), (answer) => {
+      rl.question(chalk.yellow('▶ ') + chalk.gray(message) + chalk.dim(' (y/n) '), (answer) => {
         const normalized = answer.trim().toLowerCase()
         const approved = normalized === 'y' || normalized === 'yes'
 

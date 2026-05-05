@@ -197,4 +197,24 @@ export class LLMProvider {
 
     return result;
   }
+
+  /**
+   * Approximate maximum context window size for the current model.
+   */
+  getModelMaxTokens(): number {
+    const map: Record<string, number> = {
+      'claude-sonnet-4-20250514': 200_000,
+      'claude-3-5-sonnet-20241022': 200_000,
+      'deepseek-v4-flash': 128_000,
+      'deepseek-v4-pro': 128_000,
+    }
+    return map[this.model] ?? 128_000; // default
+  }
+
+  /**
+   * Get current model name.
+   */
+  getModelName(): string {
+    return this.model
+  }
 }

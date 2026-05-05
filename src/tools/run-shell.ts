@@ -37,7 +37,7 @@ export const runShellTool: Tool<z.input<typeof paramsSchema>> = {
     // Ask user permission
     let message = ''
     if (dangerous) {
-      message = `⚠️  DANGEROUS COMMAND: \`${command}\`\nThis matches known dangerous patterns. Proceed?`
+      message = `!!! DANGEROUS COMMAND: \`${command}\`\nThis matches known dangerous patterns. Proceed?`
     } else {
       message = `Execute shell command: \`${command}\`?`
     }

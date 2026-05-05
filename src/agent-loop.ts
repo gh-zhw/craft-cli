@@ -8,8 +8,6 @@ import {
   finishStream,
   printToolCallStart,
   printToolCallEnd,
-  printAssistantReplyStart,
-  printAssistantReplyEnd,
 } from './ui/chalk-ui.js'
 import chalk from 'chalk'
 
@@ -41,7 +39,6 @@ export async function agentLoop(
     const callbacks: ChatCallbacks = {
       onText: (chunk) => {
         if (!streamingStarted) {
-          printAssistantReplyStart();
           streamingStarted = true;
         }
         printStreamingText(chunk);
@@ -103,10 +100,8 @@ export async function agentLoop(
     }
 
     if (!streamingStarted) {
-      printAssistantReplyStart();
       finishStream();
     }
-    printAssistantReplyEnd();
 
     // Append final assistant message to history
     messages.push({

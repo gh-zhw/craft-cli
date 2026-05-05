@@ -6,6 +6,9 @@ import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
 
 
+const dialogBoxWidth = 70
+
+
 // Configure marked to render for terminal
 marked.setOptions({
   renderer: new TerminalRenderer({
@@ -91,14 +94,14 @@ export function finishStream() {
   process.stdout.write('\n')
 }
 
-const userLine = chalk.hex('#F97316')('━'.repeat(80))
+const userLine = chalk.hex('#ee7b29')('━'.repeat(dialogBoxWidth))
 
 /**
  * Print a separator and a bold "You:" label to mark the start of a user message block.
  */
 export function printUserMessageStart() {
   console.log(userLine)
-  console.log(chalk.bold.hex('#F97316')('You:'))
+  console.log(chalk.bold.hex('#ee7b29')('You:'))
   console.log(userLine)
 }
 
@@ -109,7 +112,7 @@ export function printUserMessageEnd() {
   console.log(userLine)
 }
 
-const assistantLine = chalk.hex('#3B82FF')('━'.repeat(80))
+const assistantLine = chalk.hex('#3171df')('━'.repeat(dialogBoxWidth))
 
 /**
  * Print a visually distinct separator line and a bold "Assistant:" label
@@ -117,7 +120,7 @@ const assistantLine = chalk.hex('#3B82FF')('━'.repeat(80))
  */
 export function printAssistantReplyStart() {
   console.log(assistantLine)
-  console.log(chalk.bold.blue('Assistant:'))
+  console.log(chalk.bold.hex('#3171df')('Assistant:'))
   console.log(assistantLine)
 }
 
@@ -158,7 +161,7 @@ export function printAssistantHeader() {
  * @param args - Arguments passed to the tool (will be previewed).
  */
 export function printToolCallStart(name: string, args: any) {
-  const argsPreview = JSON.stringify(args).substring(0, 80)
+  const argsPreview = JSON.stringify(args).substring(0, 30)
   startSpinner(chalk.yellow(`Calling tool: ${name} ${argsPreview}`))
 }
 
@@ -170,8 +173,8 @@ export function printToolCallStart(name: string, args: any) {
  * @param error - Whether the tool execution failed (default false).
  */
 export function printToolCallEnd(name: string, args: any, error?: boolean) {
-  const argsPreview = JSON.stringify(args).substring(0, 80)
-  const text = `Calling tool: ${name} ${argsPreview}`
+  const argsPreview = JSON.stringify(args).substring(0, 30)
+  const text = `Tool called: ${name} ${argsPreview}`
   if (spinner) {
     if (error) {
       stopSpinner(chalk.red(text), { type: 'fail' })
@@ -184,13 +187,35 @@ export function printToolCallEnd(name: string, args: any, error?: boolean) {
 }
 
 /**
- * Display token consumption statistics right-aligned under the response area.
- * Typically printed after the assistant's final response.
+ * Display token consumption with a percentage bar and colour-coded warnings.
  *
- * @param tokensUsed - Number of tokens used in the response.
+ * @param tokensUsed - Total tokens used in the current conversation.
+ * @param contextLimit - Maximum context window of the model.
+ * @param model - Current model identifier (e.g. "deepseek-v4-flash").
  */
-export function printStatus(tokensUsed: number) {
-  const tokenText = chalk.dim(`Tokens: ${tokensUsed} (${(tokensUsed / 1000).toFixed(1)}k)`)
-  console.log(' '.repeat(80 - tokenText.length) + tokenText)
+export function printStatus(tokensUsed: number, contextLimit: number, model?: string) {
+  const pct = (tokensUsed / contextLimit) * 100
+  const usedStr = `${tokensUsed} (${(tokensUsed / 1000).toFixed(1)}k)`
+  const limitStr = `${contextLimit} (${(contextLimit / 1000).toFixed(0)}k)`
+  const pctStr = `${pct.toFixed(1)}%`
+
+  let statusText: string
+  let colorStatusText: string;
+  if (pct >= 95) {
+    statusText = `Tokens: ${usedStr} / ${limitStr} (${pctStr})`
+    colorStatusText = chalk.red(statusText)
+  } else if (pct >= 80) {
+    statusText = `Tokens: ${usedStr} / ${limitStr} (${pctStr})`
+    colorStatusText = chalk.yellow(statusText)
+  } else {
+    statusText = `Tokens: ${usedStr} / ${limitStr} (${pctStr})`
+    colorStatusText = chalk.dim(statusText)
+  }
+
+  const modelStr = model ? model : ''
+  const colorModelStr = chalk.dim(model)
+
+  const padding = Math.max(1, dialogBoxWidth - modelStr.length - statusText.length);
+  console.log(colorModelStr + ' '.repeat(padding) + colorStatusText);
 }
 

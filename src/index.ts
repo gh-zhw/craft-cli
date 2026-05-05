@@ -1,39 +1,49 @@
 // src/index.ts
-import * as readline from 'node:readline';
+import * as readline from 'node:readline'
 import { LLMProvider } from './llm/provider.js'
 import { createToolRegistry, registerTool } from './tools/registry.js'
 import { readFileTool } from './tools/read-file.js'
 import { writeFileTool } from './tools/write-file.js'
-import { editFileTool } from './tools/edit-file.js';
-import { runShellTool } from './tools/run-shell.js';
-import { grepTool } from './tools/grep.js';
-import { globTool } from './tools/glob.js';
+import { editFileTool } from './tools/edit-file.js'
+import { runShellTool } from './tools/run-shell.js'
+import { grepTool } from './tools/grep.js'
+import { globTool } from './tools/glob.js'
 import { agentLoop } from './agent-loop.js'
-import type { Message, ToolContext } from './types.js';
+import type { Message, ToolContext } from './types.js'
 import {
   printAssistantHeader,
   printMarkdown,
   printStatus,
   printUserMessageStart,
   printUserMessageEnd,
-  printUserMessage,
-} from './ui/chalk-ui.js';
-import { buildSystemPrompt } from './utils/config.js'
+  printAssistantReplyStart,
+  printAssistantReplyEnd,
+} from './ui/chalk-ui.js'
+import { buildSystemPrompt, loadConfig, ensureConfigDir } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
+import { loadMemories, addMemory } from './utils/memory.js'
 
 // Import .env
-import 'dotenv/config';
+import 'dotenv/config'
 
 const workspaceRoot = process.cwd()
 
 async function main() {
-  console.clear();
-  printAssistantHeader();
-  console.log();
+  console.clear()
+  printAssistantHeader()
+  console.log()
 
-  // Initialize LLM provider (reads ANTHROPIC_API_KEY from env)
+  ensureConfigDir(workspaceRoot)
+
+  // Load user configuration (Model priority: options > config > env > default)
+  const userConfig = loadConfig(workspaceRoot)
+
+  const memories = loadMemories(workspaceRoot)
+
+  // Initialize LLM provider
   const provider = new LLMProvider({
     thinking: {type: 'disabled'},
+    model: userConfig.defaultModel,
   })
 
   // Set up tool registry
@@ -45,12 +55,12 @@ async function main() {
   registerTool(registry, grepTool)
   registerTool(registry, globTool)
 
-  const systemPrompt = buildSystemPrompt(workspaceRoot);
+  const systemPrompt = buildSystemPrompt(workspaceRoot, memories)
   let messages: Message[] = [
     { role: 'system', content: systemPrompt }
   ]
   // cumulative token count for the session
-  let sessionTotalTokens = 0;
+  let sessionTotalTokens = 0
 
   // Readline setup
   const rl = readline.createInterface({
@@ -64,7 +74,7 @@ async function main() {
     askApproval: createAskApproval(rl),
   }
 
-  console.log('Type .exit to quit, .clear to reset context.\n')
+  console.log('Type /exit to quit, /reset to reset context.\n')
   printUserMessageStart()
   rl.prompt()
 
@@ -78,41 +88,55 @@ async function main() {
     }
 
     // Special commands
-    if (input === '.exit' || input === 'exit') {
+    if (input.trimEnd() === '/exit') {
       process.exit(0)
     }
-    if (input === '.clear') {
+    if (input.trimEnd() === '/reset') {
       messages.length = 0
       messages = [{ role: 'system', content: systemPrompt }]
       sessionTotalTokens = 0
       console.clear()
-      printAssistantHeader();
+      printAssistantHeader()
+      printUserMessageStart()
+      rl.prompt()
+      return
+    }
+    if (input.startsWith('/remember ')) {
+      const memContent = input.slice('/remember '.length).trim()
+      if (memContent) {
+        addMemory(workspaceRoot, memContent)
+        console.log('Memory saved. It will be applied in the next session.')
+      }
       printUserMessageStart()
       rl.prompt()
       return
     }
 
     // Normal user message
-    messages.push({ role: 'user', content: input });
+    messages.push({ role: 'user', content: input })
 
     try {
+      printAssistantReplyStart()
+  
       const result = await agentLoop(provider, registry, context, messages)
       // Update messages with the result
-      messages = result.updatedMessages;
+      messages = result.updatedMessages
       // Update cumulative token counter
-      const turnTokens = result.totalUsage.input + result.totalUsage.output;
-      sessionTotalTokens += turnTokens;
-      printStatus(sessionTotalTokens);
+      const turnTokens = result.totalUsage.input + result.totalUsage.output
+      sessionTotalTokens += turnTokens
+
+      printStatus(sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
+      printAssistantReplyEnd()
     } catch (error: any) {
-      console.error('Error:', error.message);
+      console.error('Error:', error.message)
     }
 
     printUserMessageStart()
-    rl.prompt();
+    rl.prompt()
   })
 
   rl.on('close', () => {
-    process.exit(0);
+    process.exit(0)
   })
 }
 
