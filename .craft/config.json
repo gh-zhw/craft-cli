@@ -1,0 +1,5 @@
+{
+    "defaultModel": "deepseek-v4-flash",
+    "autoApprove": false,
+    "autoApproveSafeCommands": true
+}

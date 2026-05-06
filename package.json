@@ -7,6 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx src/index.ts"
   },
+  "bin": {
+    "craft": "./bin/craft.mjs"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gh-zhw/craft-cli.git"

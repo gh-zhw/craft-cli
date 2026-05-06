@@ -22,9 +22,11 @@ import {
 import { buildSystemPrompt, loadConfig, ensureConfigDir } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
 import { loadMemories, addMemory } from './utils/memory.js'
+import chalk from 'chalk'
 
 // Import .env
 import 'dotenv/config'
+
 
 const workspaceRoot = process.cwd()
 
@@ -72,9 +74,10 @@ async function main() {
   const context: ToolContext = {
     workspaceRoot,
     askApproval: createAskApproval(rl),
+    config: { ...userConfig, autoApprove: userConfig.autoApprove },
   }
 
-  console.log('Type /exit to quit, /reset to reset context.\n')
+  console.log('Type /exit to quit, /reset to reset context, /remember <memory> to set memories.\n')
   printUserMessageStart()
   rl.prompt()
 
@@ -105,11 +108,25 @@ async function main() {
       const memContent = input.slice('/remember '.length).trim()
       if (memContent) {
         addMemory(workspaceRoot, memContent)
-        console.log('Memory saved. It will be applied in the next session.')
+        console.log(chalk.gray('Memory saved.'))
       }
       printUserMessageStart()
       rl.prompt()
       return
+    }
+    if (input === '/auto') {
+      context.config.autoApprove = true;
+      console.log(chalk.green('✓ Auto-approve mode ON'));
+      printUserMessageStart();
+      rl.prompt();
+      return;
+    }
+    if (input === '/ask') {
+      context.config.autoApprove = userConfig.autoApprove;
+      console.log(chalk.yellow('✓ Interactive approval mode restored'));
+      printUserMessageStart();
+      rl.prompt();
+      return;
     }
 
     // Normal user message

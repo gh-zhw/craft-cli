@@ -1,5 +1,7 @@
 // src/types.ts
 import { z } from 'zod'
+import type { UserConfig } from './utils/config.js'
+import type { PermissionLevel } from './utils/permission.js'
 
 // ---------- Tool Protocol ----------
 
@@ -8,7 +10,8 @@ import { z } from 'zod'
  */
 export interface ToolContext {
   workspaceRoot: string;
-  askApproval: (message: string) => Promise<boolean>;
+  askApproval: (message: string, level?: PermissionLevel) => Promise<boolean>;
+  config: UserConfig;
 }
 
 /**

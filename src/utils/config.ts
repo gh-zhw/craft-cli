@@ -5,6 +5,12 @@ import { join } from 'node:path'
 export interface UserConfig {
   defaultModel?: string;
   autoApprove?: boolean;
+  autoApproveSafeCommands?: boolean;
+}
+
+const DEFAULT_CONFIG: UserConfig = {
+  autoApprove: false,
+  autoApproveSafeCommands: true,
 }
 
 /**
@@ -14,12 +20,13 @@ export function loadConfig(workspaceRoot: string): UserConfig {
   const configPath = join(workspaceRoot, '.craft', 'config.json')
   if (existsSync(configPath)) {
     try {
-      return JSON.parse(readFileSync(configPath, 'utf-8'))
+      const user = JSON.parse(readFileSync(configPath, 'utf-8'))
+      return { ...DEFAULT_CONFIG, ...user }
     } catch {
       // Ignore malformed JSON
     }
   }
-  return {}
+  return { ...DEFAULT_CONFIG }
 }
 
 /**

@@ -3,13 +3,17 @@ import type { Message, ToolContext, LLMResponse } from './types.js'
 import type { ChatCallbacks, LLMProvider } from './llm/provider.js'
 import type { ToolRegistry } from './tools/registry.js'
 import { getToolSchemas } from './tools/registry.js'
+import chalk from 'chalk'
 import {
   printStreamingText,
   finishStream,
   printToolCallStart,
   printToolCallEnd,
 } from './ui/chalk-ui.js'
-import chalk from 'chalk'
+import {
+  getPermissionLevel,
+  getApprovalMessage,
+} from './utils/permission.js'
 
 
 export interface AgentLoopResult {
@@ -69,6 +73,28 @@ export async function agentLoop(
         const tool = registry.get(tc.name)
         if (!tool) {
           throw new Error(`Unknown tool requested: ${tc.name}`)
+        }
+
+        const level = getPermissionLevel(tc.name, tc.arguments, context.config)
+        const msg = getApprovalMessage(tc.name, tc.arguments, level)
+
+        let approved = true
+
+        if (level !== 'auto' && !context.config.autoApprove) {
+          printToolCallStart(tc.name, tc.arguments)
+          try {
+            approved = await context.askApproval(msg, level)
+          } catch {
+            approved = false
+          }
+          if (!approved) {
+            messages.push({
+              role: 'tool' as const,
+              content: 'Error: User denied the operation.',
+              tool_call_id: tc.id,
+            });
+            continue
+          }
         }
 
         printToolCallStart(tc.name, tc.arguments)

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 function memoryFilePath(workspaceRoot: string): string {
-  return join(workspaceRoot, '.craft', 'memories.md');
+  return join(workspaceRoot, '.craft', 'MEMORIES.md');
 }
 
 /**

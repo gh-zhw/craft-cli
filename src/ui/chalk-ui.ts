@@ -45,9 +45,9 @@ export function stopSpinner(
   if (spinner.isSpinning) {
     // Spinner is active – use ora's native methods
     if (type === 'fail') {
-      spinner.fail(finalText ? chalk.red(finalText) : undefined)
+      spinner.fail(finalText ? finalText : undefined)
     } else {
-      spinner.succeed(finalText ? chalk.gray(finalText) : undefined)
+      spinner.succeed(finalText ? finalText : undefined)
     }
   } else {
     // Spinner was paused (stopped manually). Print manually with icon.
@@ -66,7 +66,6 @@ export function stopSpinner(
  */
 export function pauseSpinner() {
   if (spinner) {
-    spinner.text = chalk.yellow('Waiting for confirmation...')
     spinner.stop()
   }
 }
@@ -94,13 +93,13 @@ export function finishStream() {
   process.stdout.write('\n')
 }
 
-const userLine = chalk.hex('#ee7b29')('━'.repeat(dialogBoxWidth))
+const userLine = chalk.hex('#ee7b29')('-'.repeat(dialogBoxWidth))
 
 /**
  * Print a separator and a bold "You:" label to mark the start of a user message block.
  */
 export function printUserMessageStart() {
-  console.log(userLine)
+  // console.log(userLine)
   console.log(chalk.bold.hex('#ee7b29')('You:'))
   console.log(userLine)
 }
@@ -112,14 +111,14 @@ export function printUserMessageEnd() {
   console.log(userLine)
 }
 
-const assistantLine = chalk.hex('#3171df')('━'.repeat(dialogBoxWidth))
+const assistantLine = chalk.hex('#3171df')('-'.repeat(dialogBoxWidth))
 
 /**
  * Print a visually distinct separator line and a bold "Assistant:" label
  * to indicate the start of an assistant's response block.
  */
 export function printAssistantReplyStart() {
-  console.log(assistantLine)
+  // console.log(assistantLine)
   console.log(chalk.bold.hex('#3171df')('Assistant:'))
   console.log(assistantLine)
 }
@@ -161,7 +160,7 @@ export function printAssistantHeader() {
  * @param args - Arguments passed to the tool (will be previewed).
  */
 export function printToolCallStart(name: string, args: any) {
-  const argsPreview = JSON.stringify(args).substring(0, 30)
+  const argsPreview = JSON.stringify(args)
   startSpinner(chalk.yellow(`Calling tool: ${name} ${argsPreview}`))
 }
 
@@ -173,13 +172,13 @@ export function printToolCallStart(name: string, args: any) {
  * @param error - Whether the tool execution failed (default false).
  */
 export function printToolCallEnd(name: string, args: any, error?: boolean) {
-  const argsPreview = JSON.stringify(args).substring(0, 30)
+  const argsPreview = JSON.stringify(args)
   const text = `Tool called: ${name} ${argsPreview}`
   if (spinner) {
     if (error) {
       stopSpinner(chalk.red(text), { type: 'fail' })
     } else {
-      stopSpinner(chalk.gray(text))
+      stopSpinner(chalk.dim(text))
     }
   } else {
     console.log(text)
