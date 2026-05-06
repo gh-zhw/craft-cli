@@ -4,6 +4,7 @@ import boxen from 'boxen'
 import ora, { Ora } from 'ora'
 import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
+import { SessionInfoProps } from '../types'
 
 
 const dialogBoxWidth = 70
@@ -93,7 +94,7 @@ export function finishStream() {
   process.stdout.write('\n')
 }
 
-const userLine = chalk.hex('#ee7b29')('-'.repeat(dialogBoxWidth))
+const userLine = chalk.hex('#ee7b29')('─'.repeat(dialogBoxWidth))
 
 /**
  * Print a separator and a bold "You:" label to mark the start of a user message block.
@@ -111,7 +112,7 @@ export function printUserMessageEnd() {
   console.log(userLine)
 }
 
-const assistantLine = chalk.hex('#3171df')('-'.repeat(dialogBoxWidth))
+const assistantLine = chalk.hex('#3171df')('─'.repeat(dialogBoxWidth))
 
 /**
  * Print a visually distinct separator line and a bold "Assistant:" label
@@ -134,7 +135,7 @@ export function printAssistantReplyEnd() {
  * Display a user message with a green prompt indicator.
  */
 export function printUserMessage(text: string) {
-  console.log(chalk.green('>'), text);
+  console.log(chalk.green('>'), text)
 }
 
 /**
@@ -199,7 +200,7 @@ export function printStatus(tokensUsed: number, contextLimit: number, model?: st
   const pctStr = `${pct.toFixed(1)}%`
 
   let statusText: string
-  let colorStatusText: string;
+  let colorStatusText: string
   if (pct >= 95) {
     statusText = `Tokens: ${usedStr} / ${limitStr} (${pctStr})`
     colorStatusText = chalk.red(statusText)
@@ -214,7 +215,30 @@ export function printStatus(tokensUsed: number, contextLimit: number, model?: st
   const modelStr = model ? model : ''
   const colorModelStr = chalk.dim(model)
 
-  const padding = Math.max(1, dialogBoxWidth - modelStr.length - statusText.length);
-  console.log(colorModelStr + ' '.repeat(padding) + colorStatusText);
+  const padding = Math.max(1, dialogBoxWidth - modelStr.length - statusText.length)
+  console.log(colorModelStr + ' '.repeat(padding) + colorStatusText)
 }
 
+/**
+ * Display a formatted session information panel.
+ */
+export function printSessionInfo(props: SessionInfoProps) {
+  const lines: string[] = []
+  const percent = ((props.tokensUsed / props.contextLimit) * 100).toFixed(1)
+  lines.push(chalk.bold.blue('Session Info'))
+  lines.push(chalk.dim('─────────────────────────'))
+  lines.push(`Model        : ${chalk.cyan(props.model)}`)
+  lines.push(`Workspace    : ${chalk.gray(props.workspace)}`)
+  lines.push(`Tokens       : ${props.tokensUsed} / ${props.contextLimit} (${percent}%)`)
+  lines.push(`Messages     : ${props.messagesCount}`)
+  lines.push(`Tools loaded : ${props.toolsCount}`)
+  lines.push(`Memories     : ${props.hasMemories ? chalk.green('present') : chalk.gray('none')}`)
+  lines.push(
+    `Auto approve : ${props.autoApprove ? chalk.yellow('ON (all actions skip confirmation)') : chalk.gray('off')}`
+  )
+  console.log(boxen(lines.join('\n'), {
+    padding: 1,
+    borderColor: 'cyan',
+    borderStyle: 'round',
+  }))
+}

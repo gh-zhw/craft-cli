@@ -34,3 +34,17 @@ export function addMemory(workspaceRoot: string, content: string): void {
   const line = `- [${today}] ${content.trimEnd()}\n`
   appendFileSync(file, line, 'utf-8')
 }
+
+/**
+ * Check whether there is at least one memory stored for the workspace.
+ */
+export function hasMemories(workspaceRoot: string): boolean {
+  const file = memoryFilePath(workspaceRoot)
+  if (!existsSync(file)) return false
+  try {
+    const content = readFileSync(file, 'utf-8').trim()
+    return content.length > 0
+  } catch {
+    return false
+  }
+}

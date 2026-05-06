@@ -51,3 +51,14 @@ export interface LLMResponse {
   usage: { input: number; output: number };
   contentBlocks: any[];  // Anthropic.ContentBlock[]
 }
+
+export interface SessionInfoProps {
+  model: string;
+  tokensUsed: number;
+  contextLimit: number;
+  workspace: string;
+  toolsCount: number;
+  hasMemories: boolean;
+  autoApprove: boolean;
+  messagesCount: number;
+}

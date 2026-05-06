@@ -22,6 +22,8 @@ import {
 import { buildSystemPrompt, loadConfig, ensureConfigDir } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
 import { loadMemories, addMemory } from './utils/memory.js'
+import { printSessionInfo } from './ui/chalk-ui.js';
+import { hasMemories } from './utils/memory.js';
 import chalk from 'chalk'
 
 // Import .env
@@ -124,6 +126,24 @@ async function main() {
     if (input === '/ask') {
       context.config.autoApprove = userConfig.autoApprove;
       console.log(chalk.yellow('✓ Interactive approval mode restored'));
+      printUserMessageStart();
+      rl.prompt();
+      return;
+    }
+    if (input === '/info') {
+      const providerModel = provider.getModelName();
+      const maxTokens = provider.getModelMaxTokens();
+      const memAvail = hasMemories(workspaceRoot);
+      printSessionInfo({
+        model: providerModel,
+        tokensUsed: sessionTotalTokens,
+        contextLimit: maxTokens,
+        workspace: workspaceRoot,
+        toolsCount: registry.size,
+        hasMemories: memAvail,
+        autoApprove: context.config.autoApprove!,
+        messagesCount: messages.length,
+      });
       printUserMessageStart();
       rl.prompt();
       return;
