@@ -21,9 +21,8 @@ import {
 } from './ui/chalk-ui.js'
 import { buildSystemPrompt, loadConfig, ensureConfigDir } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
-import { loadMemories, addMemory } from './utils/memory.js'
-import { printSessionInfo } from './ui/chalk-ui.js';
-import { hasMemories } from './utils/memory.js';
+import { loadMemories } from './utils/memory.js'
+import { tryExecuteCommand, type CommandContext } from './repl-commands.js'
 import chalk from 'chalk'
 
 // Import .env
@@ -70,7 +69,7 @@ async function main() {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: '\u001b[32m> \u001b[39m', // green prompt
+    prompt: chalk.gray(`${workspaceRoot} `) + chalk.green('❯ '), // green prompt
   })
 
   const context: ToolContext = {
@@ -79,12 +78,40 @@ async function main() {
     config: { ...userConfig, autoApprove: userConfig.autoApprove },
   }
 
-  console.log('Type /exit to quit, /reset to reset context, /remember <memory> to set memories.\n')
+  let isProcessing = false
+
+  const cmdCtx: CommandContext = {
+    messages,
+    systemPrompt,
+    sessionTotalTokens,
+    toolContext: context,
+    userConfig,
+    provider,
+    registry,
+    workspaceRoot,
+    rl,
+    isProcessing,
+  }
+
+  console.log(
+    chalk.cyan('/exit') + chalk.dim(' quit · ') +
+    chalk.cyan('/reset') + chalk.dim(' reset · ') +
+    chalk.cyan('/info') + chalk.dim(' status · ') +
+    chalk.cyan('/auto') + chalk.dim('/') + chalk.cyan('ask') + chalk.dim(' toggle approval mode · ') +
+    chalk.cyan('/remember') + chalk.dim(' save memory')
+  );
+  console.log()
   printUserMessageStart()
   rl.prompt()
 
   rl.on('line', async (line) => {
     const input = line.trim()
+
+    // If the Agent is processing (including approval), ignore any input
+    if (isProcessing) {
+      return
+    }
+
     printUserMessageEnd()
     if (!input) {
       printUserMessageStart()
@@ -93,65 +120,13 @@ async function main() {
     }
 
     // Special commands
-    if (input.trimEnd() === '/exit') {
-      process.exit(0)
-    }
-    if (input.trimEnd() === '/reset') {
-      messages.length = 0
-      messages = [{ role: 'system', content: systemPrompt }]
-      sessionTotalTokens = 0
-      console.clear()
-      printAssistantHeader()
-      printUserMessageStart()
-      rl.prompt()
-      return
-    }
-    if (input.startsWith('/remember ')) {
-      const memContent = input.slice('/remember '.length).trim()
-      if (memContent) {
-        addMemory(workspaceRoot, memContent)
-        console.log(chalk.gray('Memory saved.'))
-      }
-      printUserMessageStart()
-      rl.prompt()
-      return
-    }
-    if (input === '/auto') {
-      context.config.autoApprove = true;
-      console.log(chalk.green('✓ Auto-approve mode ON'));
-      printUserMessageStart();
-      rl.prompt();
-      return;
-    }
-    if (input === '/ask') {
-      context.config.autoApprove = userConfig.autoApprove;
-      console.log(chalk.yellow('✓ Interactive approval mode restored'));
-      printUserMessageStart();
-      rl.prompt();
-      return;
-    }
-    if (input === '/info') {
-      const providerModel = provider.getModelName();
-      const maxTokens = provider.getModelMaxTokens();
-      const memAvail = hasMemories(workspaceRoot);
-      printSessionInfo({
-        model: providerModel,
-        tokensUsed: sessionTotalTokens,
-        contextLimit: maxTokens,
-        workspace: workspaceRoot,
-        toolsCount: registry.size,
-        hasMemories: memAvail,
-        autoApprove: context.config.autoApprove!,
-        messagesCount: messages.length,
-      });
-      printUserMessageStart();
-      rl.prompt();
-      return;
-    }
+    const handled = await tryExecuteCommand(input, cmdCtx)
+    if (handled) return
 
     // Normal user message
     messages.push({ role: 'user', content: input })
 
+    isProcessing = true
     try {
       printAssistantReplyStart()
   
@@ -168,6 +143,7 @@ async function main() {
       console.error('Error:', error.message)
     }
 
+    isProcessing = false
     printUserMessageStart()
     rl.prompt()
   })

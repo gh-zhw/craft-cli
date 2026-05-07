@@ -94,7 +94,11 @@ export function getApprovalMessage(
   args: Record<string, any>,
   level: PermissionLevel,
 ): string {
-  const argsPreview = JSON.stringify(args).slice(0, 100)
+  const argsStr = JSON.stringify(args)
+  let argsPreview = argsStr
+  if (argsStr.length > 50) {
+    argsPreview = argsStr.slice(0, 50) + '...'
+  }
   switch (level) {
     case 'warn':
       return `DANGEROUS: ${toolName} with ${argsPreview}`

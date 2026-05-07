@@ -148,10 +148,16 @@ export function printMarkdown(text: string) {
 /**
  * Print the craft-cli header/logo at startup.
  */
+const logo = `
+   ██████╗ ██████╗  █████╗ ███████╗████████╗     ██████╗██╗     ██╗
+  ██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝    ██╔════╝██║     ██║
+  ██║     ██████╔╝███████║█████╗     ██║       ██║     ██║     ██║
+  ██║     ██╔══██╗██╔══██║██╔══╝     ██║       ██║     ██║     ██║
+  ╚██████╗██║  ██║██║  ██║██║        ██║       ╚██████╗███████╗██║
+   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝        ╚═════╝╚══════╝╚═╝`
 export function printAssistantHeader() {
-  const text =
-    chalk.bold.blue('Craft CLI') + ' - ' + chalk.dim('Hand-crafted agent in your terminal')
-  console.log(boxen(text, { padding: 1, borderColor: 'blue', borderStyle: 'round' }))
+  const text = chalk.hex('#b11f1f')(logo)
+  console.log(boxen(text, { padding: 1, borderColor: '#c51818', borderStyle: 'round' }))
 }
 
 /**
@@ -161,7 +167,11 @@ export function printAssistantHeader() {
  * @param args - Arguments passed to the tool (will be previewed).
  */
 export function printToolCallStart(name: string, args: any) {
-  const argsPreview = JSON.stringify(args)
+  const argsStr = JSON.stringify(args)
+  let argsPreview = argsStr
+  if (argsStr.length > 50) {
+    argsPreview = argsStr.slice(0, 50) + '...'
+  }
   startSpinner(chalk.yellow(`Calling tool: ${name} ${argsPreview}`))
 }
 
@@ -173,7 +183,11 @@ export function printToolCallStart(name: string, args: any) {
  * @param error - Whether the tool execution failed (default false).
  */
 export function printToolCallEnd(name: string, args: any, error?: boolean) {
-  const argsPreview = JSON.stringify(args)
+  const argsStr = JSON.stringify(args)
+  let argsPreview = argsStr
+  if (argsStr.length > 50) {
+    argsPreview = argsStr.slice(0, 50) + '...'
+  }
   const text = `Tool called: ${name} ${argsPreview}`
   if (spinner) {
     if (error) {
@@ -234,7 +248,7 @@ export function printSessionInfo(props: SessionInfoProps) {
   lines.push(`Tools loaded : ${props.toolsCount}`)
   lines.push(`Memories     : ${props.hasMemories ? chalk.green('present') : chalk.gray('none')}`)
   lines.push(
-    `Auto approve : ${props.autoApprove ? chalk.yellow('ON (all actions skip confirmation)') : chalk.gray('off')}`
+    `Auto approve : ${props.autoApprove ? chalk.yellow('ON') : chalk.gray('off')}`
   )
   console.log(boxen(lines.join('\n'), {
     padding: 1,

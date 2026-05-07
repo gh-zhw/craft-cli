@@ -122,7 +122,7 @@ export async function agentLoop(
     // All stop reasons that signal the end of the conversation:
     // end_turn, max_tokens, stop_sequence
     if (response.stopReason === 'max_tokens') {
-      console.log(chalk.yellow('⚠️  Response truncated (max tokens reached)'));
+      console.log(chalk.red('Response truncated (max tokens reached)'));
     }
 
     if (!streamingStarted) {
