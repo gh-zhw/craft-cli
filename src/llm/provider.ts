@@ -34,7 +34,7 @@ export class LLMProvider {
       baseURL: baseUrl,
       apiKey: apiKey
     })
-    this.model = options.model ?? process.env.ANTHROPIC_MODEL ?? 'deepseek-v4-flash';
+    this.model = options.model ?? process.env.ANTHROPIC_MODEL!;
     this.thinkingConfig = options.thinking ?? { type: 'disabled' };
   }
 

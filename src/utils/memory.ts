@@ -1,9 +1,10 @@
 // src/utils/memory.ts
 import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { CRAFT_DIR } from './config.js'
 
 function memoryFilePath(workspaceRoot: string): string {
-  return join(workspaceRoot, '.craft', 'MEMORIES.md');
+  return join(workspaceRoot, CRAFT_DIR, 'MEMORIES.md');
 }
 
 /**
@@ -29,7 +30,7 @@ export function loadMemories(workspaceRoot: string): string {
 export function addMemory(workspaceRoot: string, content: string): void {
   const file = memoryFilePath(workspaceRoot)
   // Ensure directory exists
-  mkdirSync(join(workspaceRoot, '.craft'), { recursive: true })
+  mkdirSync(join(workspaceRoot, CRAFT_DIR), { recursive: true })
   const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
   const line = `- [${today}] ${content.trimEnd()}\n`
   appendFileSync(file, line, 'utf-8')

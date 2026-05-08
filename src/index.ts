@@ -8,6 +8,7 @@ import { editFileTool } from './tools/edit-file.js'
 import { runShellTool } from './tools/run-shell.js'
 import { grepTool } from './tools/grep.js'
 import { globTool } from './tools/glob.js'
+import { addMemoryTool } from './tools/add-memory.js'
 import { agentLoop } from './agent-loop.js'
 import type { Message, ToolContext } from './types.js'
 import {
@@ -19,14 +20,11 @@ import {
   printAssistantReplyStart,
   printAssistantReplyEnd,
 } from './ui/chalk-ui.js'
-import { buildSystemPrompt, loadConfig, ensureConfigDir } from './utils/config.js'
+import { buildSystemPrompt, loadConfig, loadEnv } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
 import { loadMemories } from './utils/memory.js'
 import { tryExecuteCommand, type CommandContext } from './repl-commands.js'
 import chalk from 'chalk'
-
-// Import .env
-import 'dotenv/config'
 
 
 const workspaceRoot = process.cwd()
@@ -36,9 +34,8 @@ async function main() {
   printAssistantHeader()
   console.log()
 
-  ensureConfigDir(workspaceRoot)
-
   // Load user configuration (Model priority: options > config > env > default)
+  loadEnv(workspaceRoot)
   const userConfig = loadConfig(workspaceRoot)
 
   const memories = loadMemories(workspaceRoot)
@@ -57,6 +54,7 @@ async function main() {
   registerTool(registry, runShellTool)
   registerTool(registry, grepTool)
   registerTool(registry, globTool)
+  registerTool(registry, addMemoryTool)
 
   const systemPrompt = buildSystemPrompt(workspaceRoot, memories)
   let messages: Message[] = [
@@ -69,7 +67,7 @@ async function main() {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk.gray(`${workspaceRoot} `) + chalk.green('❯ '), // green prompt
+    prompt: chalk.gray(`${workspaceRoot} `) + chalk.green('> '),
   })
 
   const context: ToolContext = {
@@ -140,7 +138,8 @@ async function main() {
       printStatus(sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
       printAssistantReplyEnd()
     } catch (error: any) {
-      console.error('Error:', error.message)
+      console.error('System Error:', error.message)
+      printAssistantReplyEnd()
     }
 
     isProcessing = false

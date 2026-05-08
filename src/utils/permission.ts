@@ -61,6 +61,7 @@ export function getPermissionLevel(
 
     case 'write_file':
     case 'edit_file':
+    case 'add_memory':
       return 'confirm'
 
     case 'run_shell': {

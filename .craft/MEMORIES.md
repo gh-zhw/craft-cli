@@ -1,1 +1,0 @@
-- [2026-05-06] answer in lanuage that user speak
