@@ -7,7 +7,7 @@ import TerminalRenderer from 'marked-terminal'
 import { SessionInfoProps } from '../types'
 
 
-const dialogBoxWidth = 70
+const dialogBoxWidth = 80
 
 
 // Configure marked to render for terminal

@@ -28,7 +28,7 @@ const MAX_OUTPUT_LEN = 8_000
 
 export const runShellTool: Tool<z.input<typeof paramsSchema>> = {
   name: 'run_shell',
-  description: 'Execute a shell command in the workspace directory. Returns combined stdout and stderr (truncated at 8KB). Dangerous commands are rejected.',
+  description: 'Execute a shell command in the workspace directory using the shell appropriate for the current platform (e.g., cmd on Windows, bash on Unix). Returns combined stdout and stderr (truncated at 8KB). Dangerous commands are rejected.',
   parameters: paramsSchema,
   async execute(args, ctx) {
     const command = sanitizeCommand(args.command)

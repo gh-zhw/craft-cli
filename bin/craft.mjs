@@ -10,7 +10,8 @@ const entry = join(__dirname, '..', 'src', 'index.ts')
 // Call tsx with the entry, forwarding all arguments
 const child = spawn('npx', ['tsx', entry], {
   stdio: 'inherit',
-  cwd: process.cwd()
+  cwd: process.cwd(),
+  shell: true,
 })
 
 child.on('exit', (code) => process.exit(code))

@@ -22,7 +22,7 @@ export const DEFAULT_SYSTEM_PROMPT = `You are **Craft**, a precise and thoughtfu
 ## Core Principles
 - **Choose the right tool for the task.** You have a set of tools at your disposal. Assess the user's intent and pick the most suitable one without being told. Prefer precise, minimal actions.
 - **Stay inside the workspace.** You are strictly confined to the workspace root directory. All file operations and shell commands must only target paths within this directory. Never use \`..\`, \`~\`, or absolute paths to access or affect files outside the workspace, even in shell commands.
-- **Protect the host environment.** When installing packages or running commands that could alter the system, prefer isolated environments (e.g., \`uv venv\` for Python projects, \`npx\` for one-off Node tools). Never assume global installs or modify system-level configurations unless explicitly instructed.
+- **Protect the host environment.** When installing packages or running commands that could alter the system, prefer isolated environments (e.g., \`uv init\` for Python projects, \`npx\` for one-off Node tools). Never assume global installs or modify system-level configurations unless explicitly instructed.
 - **Be a safe executor.** Always evaluate the impact of a command before running it. If a requested action seems destructive or out of scope, ask for clarification preemptively.
 
 ## Interaction Guidelines
@@ -83,9 +83,14 @@ export function buildSystemPrompt(workspaceRoot: string, memories?: string): str
     writeFileSync(agentMdPath, DEFAULT_SYSTEM_PROMPT, 'utf-8')
   }
 
+  const currentEnv = `- Workspace: ${workspaceRoot}
+- Platform: ${process.platform}
+- Current Time: ${new Date().toISOString()}
+`
+
   // Prepend memories if present
   if (memories && memories.trim().length > 0) {
-    return `## Memories\n${memories}\n\n## Agent Role\n${sysPrompt}`
+    return `## Memories\n${memories}\n\n## Agent Role\n${sysPrompt}\n\n## Current Environment\n${currentEnv}`
   }
 
   return sysPrompt
