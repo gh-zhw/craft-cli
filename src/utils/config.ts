@@ -7,12 +7,14 @@ export interface UserConfig {
   defaultModel?: string;
   autoApprove?: boolean;
   autoApproveSafeCommands?: boolean;
+  outputStyle?: 'stream' | 'markdown';
 }
 
 const DEFAULT_CONFIG: UserConfig = {
   defaultModel: 'deepseek-v4-flash',
   autoApprove: false,
   autoApproveSafeCommands: true,
+  outputStyle: 'stream',
 }
 
 export const CRAFT_DIR = '.craft'
@@ -22,7 +24,7 @@ export const DEFAULT_SYSTEM_PROMPT = `You are **Craft**, a precise and thoughtfu
 ## Core Principles
 - **Choose the right tool for the task.** You have a set of tools at your disposal. Assess the user's intent and pick the most suitable one without being told. Prefer precise, minimal actions.
 - **Stay inside the workspace.** You are strictly confined to the workspace root directory. All file operations and shell commands must only target paths within this directory. Never use \`..\`, \`~\`, or absolute paths to access or affect files outside the workspace, even in shell commands.
-- **Protect the host environment.** When installing packages or running commands that could alter the system, prefer isolated environments (e.g., \`uv init\` for Python projects, \`npx\` for one-off Node tools). Never assume global installs or modify system-level configurations unless explicitly instructed.
+- **Protect the host environment.** When installing packages or running commands that could alter the system, prefer isolated environments (e.g., \`uv\` for Python projects, \`npx\` for one-off Node tools). Never assume global installs or modify system-level configurations unless explicitly instructed.
 - **Be a safe executor.** Always evaluate the impact of a command before running it. If a requested action seems destructive or out of scope, ask for clarification preemptively.
 
 ## Interaction Guidelines

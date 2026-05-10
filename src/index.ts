@@ -13,7 +13,6 @@ import { agentLoop } from './agent-loop.js'
 import type { Message, ToolContext } from './types.js'
 import {
   printAssistantHeader,
-  printMarkdown,
   printStatus,
   printUserMessageStart,
   printUserMessageEnd,

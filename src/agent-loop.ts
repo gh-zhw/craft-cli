@@ -9,6 +9,7 @@ import {
   finishStream,
   printToolCallStart,
   printToolCallEnd,
+  printMarkdown,
 } from './ui/chalk-ui.js'
 import {
   getPermissionLevel,
@@ -34,30 +35,32 @@ export async function agentLoop(
 ): Promise<AgentLoopResult> {
   // Convert tools to Anthropic format once (they are immutable per loop)
   const toolSchemas = getToolSchemas(registry)
-  let totalInput = 0;
-  let totalOutput = 0;
+  let totalInput = 0
+  let totalOutput = 0
+  const outputStyle = context.config.outputStyle ?? 'stream'
 
   while (true) {
     let streamingStarted = false
 
-    const callbacks: ChatCallbacks = {
-      onText: (chunk) => {
+    const callbacks: ChatCallbacks = {}
+    if (outputStyle === 'stream') {
+      callbacks.onText = (chunk) => {
         if (!streamingStarted) {
-          streamingStarted = true;
+          streamingStarted = true
         }
-        printStreamingText(chunk);
-      },
+        printStreamingText(chunk)
+      }
     }
 
     const response: LLMResponse = await provider.chat(messages, toolSchemas, callbacks)
 
     if (streamingStarted) {
-      finishStream();
+      finishStream()
     }
 
     // Accumulate tokens across all calls in this agent loop
-    totalInput += response.usage.input;
-    totalOutput += response.usage.output;
+    totalInput += response.usage.input
+    totalOutput += response.usage.output
 
     if (response.stopReason === 'tool_use') {
       // Add the assistant message that contains the tool calls
@@ -92,14 +95,14 @@ export async function agentLoop(
               role: 'tool' as const,
               content: 'Error: User denied the operation.',
               tool_call_id: tc.id,
-            });
+            })
             continue
           }
         }
 
         printToolCallStart(tc.name, tc.arguments)
         try {
-          const result = await tool.execute(tc.arguments, context);
+          const result = await tool.execute(tc.arguments, context)
           printToolCallEnd(tc.name, tc.arguments)
           messages.push({
             role: 'tool',
@@ -116,17 +119,21 @@ export async function agentLoop(
         }
       }
 
-      continue;
+      continue
     }
 
     // All stop reasons that signal the end of the conversation:
     // end_turn, max_tokens, stop_sequence
     if (response.stopReason === 'max_tokens') {
-      console.log(chalk.red('Response truncated (max tokens reached)'));
+      console.log(chalk.red('Response truncated (max tokens reached)'))
     }
 
-    if (!streamingStarted) {
-      finishStream();
+    if (outputStyle === 'markdown') {
+      printMarkdown(response.text);
+    } else {
+      if (!streamingStarted) {
+        finishStream();
+      }
     }
 
     // Append final assistant message to history

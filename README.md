@@ -50,7 +50,7 @@ You can also create or modify these files manually at any time.
 | Command | Description |
 |---------|-------------|
 | `/exit` | Quit the REPL |
-| `/clear` | Reset the conversation context |
+| `/reset` | Reset the conversation context |
 | `/auto` | Enable automatic approval for the current session |
 | `/ask` | Restore interactive approval |
 | `/remember <text>` | Save a memory for future sessions |
@@ -62,7 +62,8 @@ Edit ```.craft/config.json``` to set a default model, toggle auto‑approval glo
 {
   "defaultModel": "claude-sonnet-4-20250514",
   "autoApprove": false,
-  "autoApproveSafeCommands": true
+  "autoApproveSafeCommands": true,
+  "outputStyle": "markdown"
 }
 ```
 

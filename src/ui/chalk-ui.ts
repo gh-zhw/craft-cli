@@ -7,7 +7,7 @@ import TerminalRenderer from 'marked-terminal'
 import { SessionInfoProps } from '../types'
 
 
-const dialogBoxWidth = 80
+const dialogBoxWidth = process.stdout.columns
 
 
 // Configure marked to render for terminal
@@ -100,9 +100,7 @@ const userLine = chalk.hex('#ee7b29')('─'.repeat(dialogBoxWidth))
  * Print a separator and a bold "You:" label to mark the start of a user message block.
  */
 export function printUserMessageStart() {
-  // console.log(userLine)
   console.log(chalk.bold.hex('#ee7b29')('You:'))
-  console.log(userLine)
 }
 
 /**
@@ -119,9 +117,7 @@ const assistantLine = chalk.hex('#3171df')('─'.repeat(dialogBoxWidth))
  * to indicate the start of an assistant's response block.
  */
 export function printAssistantReplyStart() {
-  // console.log(assistantLine)
   console.log(chalk.bold.hex('#3171df')('Assistant:'))
-  console.log(assistantLine)
 }
 
 /**
