@@ -117,7 +117,7 @@ const assistantLine = chalk.hex('#3171df')('─'.repeat(dialogBoxWidth))
  * to indicate the start of an assistant's response block.
  */
 export function printAssistantReplyStart() {
-  console.log(chalk.bold.hex('#3171df')('Assistant:'))
+  console.log(chalk.bold.hex('#3171df')('Craft:'))
 }
 
 /**

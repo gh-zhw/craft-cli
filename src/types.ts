@@ -52,6 +52,7 @@ export interface LLMResponse {
   contentBlocks: any[];  // Anthropic.ContentBlock[]
 }
 
+// ---------- Session Information ----------
 export interface SessionInfoProps {
   model: string;
   tokensUsed: number;

@@ -134,6 +134,11 @@ async function main() {
       const turnTokens = result.totalUsage.input + result.totalUsage.output
       sessionTotalTokens += turnTokens
 
+      if (result.terminationReason === 'consecutive_denials') {
+        console.log(chalk.yellow('Task stopped because you denied 3 tool calls in a row.'));
+      } else if (result.terminationReason === 'max_tool_calls') {
+        console.log(chalk.yellow('Task stopped because it reached the tool call limit.'));
+      }
       printStatus(sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
       printAssistantReplyEnd()
     } catch (error: any) {

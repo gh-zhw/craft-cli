@@ -8,6 +8,8 @@ export interface UserConfig {
   autoApprove?: boolean;
   autoApproveSafeCommands?: boolean;
   outputStyle?: 'stream' | 'markdown';
+  maxConsecutiveDenials?: number;
+  maxToolCallsPerTurn?: number;
 }
 
 const DEFAULT_CONFIG: UserConfig = {
@@ -15,6 +17,8 @@ const DEFAULT_CONFIG: UserConfig = {
   autoApprove: false,
   autoApproveSafeCommands: true,
   outputStyle: 'stream',
+  maxConsecutiveDenials: 3,
+  maxToolCallsPerTurn: 15,
 }
 
 export const CRAFT_DIR = '.craft'
