@@ -25,7 +25,7 @@ export class OpenAIProvider implements BaseProvider {
       apiKey,
     })
 
-    this.model = options.model ?? process.env.OPENAI_MODEL ?? 'gpt-4o'
+    this.model = options.model ?? 'gpt-4o'
     
     if (options.thinking?.enabled) {
       const strength = options.thinking?.strength

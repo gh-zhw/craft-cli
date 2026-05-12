@@ -26,7 +26,7 @@ export interface UserConfig {
 
 const DEFAULT_CONFIG: UserConfig = {
   provider: 'anthropic',
-  baseUrl: 'https://api.anthropic.com',
+  baseUrl: 'https://api.deepseek.com/anthropic',
   model: 'deepseek-v4-flash',
   thinking: { enabled: false },
   autoApprove: false,

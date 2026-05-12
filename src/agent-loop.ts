@@ -88,13 +88,18 @@ export async function agentLoop(
             role: 'tool',
             content: 'Error: Task terminated before this tool could execute.',
             tool_call_id: tc.id,
-          });
-          continue;
+          })
+          continue
         }
 
         const tool = registry.get(tc.name)
         if (!tool) {
-          throw new Error(`Unknown tool requested: ${tc.name}`)
+          messages.push({
+            role: 'tool' as const,
+            content: `Error: Unknown tool requested: ${tc.name}`,
+            tool_call_id: tc.id,
+          })
+          continue
         }
 
         if (maxToolCallsPerTurn > 0 && totalToolCalls >= maxToolCallsPerTurn) {
@@ -162,13 +167,13 @@ export async function agentLoop(
         messages.push({
           role: 'assistant',
           content: `${terminationMessage}`,
-        });
+        })
         return {
           finalText: terminationMessage,
           updatedMessages: messages,
           totalUsage: { input: totalInput, output: totalOutput },
           terminationReason: terminationType,
-        };
+        }
       }
 
       continue
@@ -181,10 +186,10 @@ export async function agentLoop(
     }
 
     if (outputStyle === 'markdown') {
-      printMarkdown(response.text);
+      printMarkdown(response.text)
     } else {
       if (!streamingStarted) {
-        finishStream();
+        finishStream()
       }
     }
 

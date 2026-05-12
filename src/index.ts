@@ -9,6 +9,8 @@ import { runShellTool } from './tools/run-shell.js'
 import { grepTool } from './tools/grep.js'
 import { globTool } from './tools/glob.js'
 import { addMemoryTool } from './tools/add-memory.js'
+import { webSearchTool } from './tools/web-search.js';
+import { webFetchTool } from './tools/web-fetch.js';
 import { agentLoop } from './agent-loop.js'
 import type { Message, ToolContext } from './types.js'
 import {
@@ -69,6 +71,8 @@ async function main() {
   registerTool(registry, grepTool)
   registerTool(registry, globTool)
   registerTool(registry, addMemoryTool)
+  registerTool(registry, webSearchTool)
+  registerTool(registry, webFetchTool)
 
   const systemPrompt = buildSystemPrompt(workspaceRoot, memories)
   let messages: Message[] = [

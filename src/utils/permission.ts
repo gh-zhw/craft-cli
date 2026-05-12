@@ -57,11 +57,13 @@ export function getPermissionLevel(
     case 'read_file':
     case 'grep':
     case 'glob':
+    case 'web_search':
       return 'auto'
 
     case 'write_file':
     case 'edit_file':
     case 'add_memory':
+    case 'web_fetch':
       return 'confirm'
 
     case 'run_shell': {

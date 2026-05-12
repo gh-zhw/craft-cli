@@ -24,10 +24,7 @@ export class AnthropicProvider implements BaseProvider {
       apiKey,
     })
 
-    this.model =
-      options.model ??
-      process.env.ANTHROPIC_MODEL ??
-      'deepseek-v4-flash'
+    this.model = options.model ?? 'claude-haiku-4-5'
     
     if (options.thinking?.enabled) {
       const strength = options.thinking?.strength
