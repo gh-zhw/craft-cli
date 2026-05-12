@@ -28,6 +28,19 @@ import chalk from 'chalk'
 
 const workspaceRoot = process.cwd()
 
+const args = process.argv.slice(2);
+let cliProvider: string | undefined;
+let cliModel: string | undefined;
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--provider' && args[i + 1]) {
+    cliProvider = args[i + 1];
+    i++;
+  } else if (args[i] === '--model' && args[i + 1]) {
+    cliModel = args[i + 1];
+    i++;
+  }
+}
+
 async function main() {
   console.clear()
   printAssistantHeader()
@@ -41,8 +54,10 @@ async function main() {
 
   // Initialize LLM provider
   const provider = new LLMProvider({
-    thinking: {type: 'disabled'},
-    model: userConfig.defaultModel,
+    provider: (cliProvider as any) ?? userConfig.provider ?? 'anthropic',
+    baseUrl: userConfig.baseUrl,
+    model: cliModel ?? userConfig.model,
+    thinking: userConfig.thinking,
   })
 
   // Set up tool registry

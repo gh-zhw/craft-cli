@@ -15,11 +15,11 @@ npm link
 ```
 
 ### 2. Configure your workspace
-In the root of any project you want to work in, create a ```.craft/.env``` file with your API credentials:
+In the root of any project you want to work in, create a ```.craft/.env``` file with your API keys:
 
 ```text
-ANTHROPIC_BASE_URL=https://api.anthropic.com
 ANTHROPIC_API_KEY=your-api-key
+OPENAI_API_KEY=your-api-key
 ```
 
 ### 3. Run Craft
@@ -60,10 +60,18 @@ Edit ```.craft/config.json``` to set a default model, toggle auto‑approval glo
 
 ```json
 {
-  "defaultModel": "claude-sonnet-4-20250514",
+  "provider": "anthropic",
+  "baseUrl": "https://api.deepseek.com/anthropic",
+  "model": "deepseek-v4-flash",
+  "thinking": {
+    "enabled": true,
+    "strength": "medium"
+  },
   "autoApprove": false,
   "autoApproveSafeCommands": true,
-  "outputStyle": "markdown"
+  "outputStyle": "stream",
+  "maxConsecutiveDenials": 3,
+  "maxToolCallsPerTurn": 15
 }
 ```
 
