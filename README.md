@@ -2,7 +2,7 @@
 
 Hand-crafted agent in your terminal.
 
-Craft is a personal coding assistant that runs directly in your terminal. It can read, write, and edit files, execute shell commands, search code, and more — all driven by an LLM.
+Craft is a personal assistant that runs directly in your terminal. It can read, write, and edit files, execute shell commands, search website, and more — all driven by an LLM.
 
 ## Getting Started
 
@@ -54,6 +54,7 @@ You can also create or modify these files manually at any time.
 | `/auto` | Enable automatic approval for the current session |
 | `/ask` | Restore interactive approval |
 | `/remember <text>` | Save a memory for future sessions |
+| `/task <description>` | Execute a complex task using Plan → Execute → Reflect → Revise methodology |
 
 ## Configuration
 Edit ```.craft/config.json``` to set a default model, toggle auto‑approval globally, and more.

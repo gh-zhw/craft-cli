@@ -7,7 +7,9 @@ import TerminalRenderer from 'marked-terminal'
 import { SessionInfoProps } from '../types'
 
 
-const dialogBoxWidth = process.stdout.columns
+function getDialogBoxWidth(): number {
+  return process.stdout.columns ?? 80;
+}
 
 
 // Configure marked to render for terminal
@@ -94,8 +96,6 @@ export function finishStream() {
   process.stdout.write('\n')
 }
 
-const userLine = chalk.hex('#ee7b29')('─'.repeat(dialogBoxWidth))
-
 /**
  * Print a separator and a bold "You:" label to mark the start of a user message block.
  */
@@ -107,10 +107,9 @@ export function printUserMessageStart() {
  * Print the closing separator line after a user message block.
  */
 export function printUserMessageEnd() {
+  const userLine = chalk.hex('#ee7b29')('─'.repeat(getDialogBoxWidth()))
   console.log(userLine)
 }
-
-const assistantLine = chalk.hex('#3171df')('─'.repeat(dialogBoxWidth))
 
 /**
  * Print a visually distinct separator line and a bold "Assistant:" label
@@ -124,6 +123,7 @@ export function printAssistantReplyStart() {
  * Print the closing separator line at the end of an assistant's response.
  */
 export function printAssistantReplyEnd() {
+  const assistantLine = chalk.hex('#3171df')('─'.repeat(getDialogBoxWidth()))
   console.log(assistantLine)
 }
 
@@ -225,7 +225,7 @@ export function printStatus(tokensUsed: number, contextLimit: number, model?: st
   const modelStr = model ? model : ''
   const colorModelStr = chalk.dim(model)
 
-  const padding = Math.max(1, dialogBoxWidth - modelStr.length - statusText.length)
+  const padding = Math.max(1, getDialogBoxWidth() - modelStr.length - statusText.length)
   console.log(colorModelStr + ' '.repeat(padding) + colorStatusText)
 }
 

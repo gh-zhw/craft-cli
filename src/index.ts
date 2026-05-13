@@ -21,11 +21,12 @@ import {
   printAssistantReplyStart,
   printAssistantReplyEnd,
 } from './ui/chalk-ui.js'
-import { buildSystemPrompt, loadConfig, loadEnv } from './utils/config.js'
+import { loadConfig, loadEnv } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
 import { loadMemories } from './utils/memory.js'
 import { tryExecuteCommand, type CommandContext } from './repl-commands.js'
 import chalk from 'chalk'
+import { buildSystemPrompt } from './utils/prompts.js'
 
 
 const workspaceRoot = process.cwd()
@@ -78,8 +79,6 @@ async function main() {
   let messages: Message[] = [
     { role: 'system', content: systemPrompt }
   ]
-  // cumulative token count for the session
-  let sessionTotalTokens = 0
 
   // Readline setup
   const rl = readline.createInterface({
@@ -94,19 +93,18 @@ async function main() {
     config: { ...userConfig, autoApprove: userConfig.autoApprove },
   }
 
-  let isProcessing = false
-
   const cmdCtx: CommandContext = {
     messages,
     systemPrompt,
-    sessionTotalTokens,
+    // cumulative token count for the session
+    sessionTotalTokens: 0,
     toolContext: context,
     userConfig,
     provider,
     registry,
     workspaceRoot,
     rl,
-    isProcessing,
+    isProcessing: false,
   }
 
   console.log(
@@ -114,8 +112,9 @@ async function main() {
     chalk.cyan('/reset') + chalk.dim(' reset · ') +
     chalk.cyan('/info') + chalk.dim(' status · ') +
     chalk.cyan('/auto') + chalk.dim('/') + chalk.cyan('ask') + chalk.dim(' toggle approval mode · ') +
-    chalk.cyan('/remember') + chalk.dim(' save memory')
-  );
+    chalk.cyan('/remember') + chalk.dim(' save memory') +
+    chalk.cyan('/task') + chalk.dim(' structured task')
+  )
   console.log()
   printUserMessageStart()
   rl.prompt()
@@ -124,7 +123,7 @@ async function main() {
     const input = line.trim()
 
     // If the Agent is processing (including approval), ignore any input
-    if (isProcessing) {
+    if (cmdCtx.isProcessing) {
       return
     }
 
@@ -142,7 +141,7 @@ async function main() {
     // Normal user message
     messages.push({ role: 'user', content: input })
 
-    isProcessing = true
+    cmdCtx.isProcessing = true
     try {
       printAssistantReplyStart()
   
@@ -151,21 +150,21 @@ async function main() {
       messages = result.updatedMessages
       // Update cumulative token counter
       const turnTokens = result.totalUsage.input + result.totalUsage.output
-      sessionTotalTokens += turnTokens
+      cmdCtx.sessionTotalTokens += turnTokens
 
       if (result.terminationReason === 'consecutive_denials') {
         console.log(chalk.yellow('Task stopped because you denied 3 tool calls in a row.'));
       } else if (result.terminationReason === 'max_tool_calls') {
         console.log(chalk.yellow('Task stopped because it reached the tool call limit.'));
       }
-      printStatus(sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
+      printStatus(cmdCtx.sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
       printAssistantReplyEnd()
     } catch (error: any) {
       console.error('System Error:', error.message)
       printAssistantReplyEnd()
     }
 
-    isProcessing = false
+    cmdCtx.isProcessing = false
     printUserMessageStart()
     rl.prompt()
   })

@@ -3,8 +3,11 @@ import type { Message, ToolContext } from './types.js'
 import type { LLMProvider } from './llm/provider.js'
 import type { ToolRegistry } from './tools/registry.js'
 import { addMemory, hasMemories } from './utils/memory.js'
-import { printSessionInfo } from './ui/chalk-ui.js'
+import { printAssistantReplyEnd, printAssistantReplyStart, printSessionInfo } from './ui/chalk-ui.js'
 import { printAssistantHeader, printUserMessageStart } from './ui/chalk-ui.js'
+import { agentLoop } from './agent-loop.js'
+import { buildTaskPrompt } from './utils/prompts.js'
+import { printStatus } from './ui/chalk-ui.js'
 import chalk from 'chalk'
 
 /**
@@ -101,10 +104,14 @@ registerCommand({
   description: 'Save a memory for future sessions',
   execute: (input, ctx) => {
     const memContent = input.slice('/remember '.length).trim()
-    if (memContent) {
-      addMemory(ctx.workspaceRoot, memContent)
-      console.log(chalk.gray('Memory saved.'))
+    if (!memContent) {
+      console.log(chalk.yellow('Usage: /remember <memory>'))
+      printUserMessageStart()
+      ctx.rl.prompt()
+      return
     }
+    addMemory(ctx.workspaceRoot, memContent)
+    console.log(chalk.gray('Memory saved.'))
     printUserMessageStart()
     ctx.rl.prompt()
   },
@@ -151,5 +158,59 @@ registerCommand({
     })
     printUserMessageStart()
     ctx.rl.prompt()
+  },
+})
+
+registerCommand({
+  name: '/task ',
+  description: 'Execute a complex task using Plan → Execute → Reflect → Revise',
+  execute: async (input, ctx) => {
+    const taskDesc = input.slice('/task '.length).trim()
+    if (!taskDesc) {
+      console.log(chalk.yellow('Usage: /task <description of the complex task>'))
+      printUserMessageStart()
+      ctx.rl.prompt()
+      return
+    }
+
+    const wrapped = buildTaskPrompt(taskDesc)
+    ctx.messages.push({ role: 'user', content: wrapped })
+
+    // Prevent user input during execution
+    ctx.isProcessing = true
+    try {
+      printAssistantReplyStart()
+      const result = await agentLoop(
+        ctx.provider,
+        ctx.registry,
+        ctx.toolContext,
+        ctx.messages,
+      )
+
+      // Update shared state
+      ctx.messages = result.updatedMessages
+      const turnTokens = result.totalUsage.input + result.totalUsage.output
+      ctx.sessionTotalTokens += turnTokens
+
+      if (result.terminationReason === 'consecutive_denials') {
+        console.log(chalk.yellow('Task stopped because you denied 3 tool calls in a row.'))
+      } else if (result.terminationReason === 'max_tool_calls') {
+        console.log(chalk.yellow('Task stopped because it reached the tool call limit.'))
+      }
+
+      printStatus(
+        ctx.sessionTotalTokens,
+        ctx.provider.getModelMaxTokens(),
+        ctx.provider.getModelName(),
+      )
+      printAssistantReplyEnd()
+    } catch (error: any) {
+      console.error('System Error:', error.message)
+      printAssistantReplyEnd()
+    } finally {
+      ctx.isProcessing = false
+      printUserMessageStart()
+      ctx.rl.prompt()
+    }
   },
 })
