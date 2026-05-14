@@ -3,14 +3,24 @@ import { z } from 'zod'
 import type { UserConfig } from './utils/config.js'
 import type { PermissionLevel } from './utils/permission.js'
 
-// ---------- Tool Protocol ----------
 
+// ---------- Approval Types ----------
+export type ApprovalAction = 'approve' | 'deny' | 'approve_all' | 'stop';
+
+export interface ApprovalRequest {
+  toolName: string;
+  args: Record<string, any>;
+  message: string;      // Prompt text corresponding to the level
+  level: PermissionLevel;
+}
+
+// ---------- Tool Protocol ----------
 /**
  * Context passed to every tool execution
  */
 export interface ToolContext {
   workspaceRoot: string;
-  askApproval: (message: string, level?: PermissionLevel) => Promise<boolean>;
+  askApproval: (request: ApprovalRequest) => Promise<ApprovalAction>;
   config: UserConfig;
 }
 
@@ -63,3 +73,4 @@ export interface SessionInfoProps {
   autoApprove: boolean;
   messagesCount: number;
 }
+

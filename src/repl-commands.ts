@@ -16,25 +16,27 @@ import chalk from 'chalk'
  */
 export interface CommandContext {
   /** The current conversation messages (including system prompt) */
-  messages: Message[]
+  messages: Message[];
   /** Base system prompt (used when resetting) */
-  systemPrompt: string
+  systemPrompt: string;
   /** Session token counter (will be mutated) */
-  sessionTotalTokens: number
+  sessionTotalTokens: number;
   /** The tool context (including config) – its config.autoApprove may be changed */
-  toolContext: ToolContext
+  toolContext: ToolContext;
   /** Original user config (for restoring autoApprove) */
-  userConfig: { autoApprove?: boolean }
+  userConfig: { autoApprove?: boolean };
+  /** Session tool whitelist (auto approve) */
+  sessionApprovedTools: Set<string>;
   /** The LLM provider (for info command) */
-  provider: LLMProvider
+  provider: LLMProvider;
   /** The tool registry (for info command) */
-  registry: ToolRegistry
+  registry: ToolRegistry;
   /** Workspace root */
-  workspaceRoot: string
+  workspaceRoot: string;
   /** readline interface (for prompt after command) */
-  rl: import('node:readline').Interface
+  rl: import('node:readline').Interface;
   /** Marker that the REPL is processing a command (prevents duplicate prompts) */
-  isProcessing: boolean
+  isProcessing: boolean;
 }
 
 export interface ReplCommand {
@@ -93,7 +95,7 @@ registerCommand({
     ctx.messages.push({ role: 'system', content: ctx.systemPrompt })
     ctx.sessionTotalTokens = 0
     console.clear()
-    printAssistantHeader()
+    printAssistantHeader('v1.0.0', ctx.workspaceRoot)
     printUserMessageStart()
     ctx.rl.prompt()
   },
@@ -185,6 +187,7 @@ registerCommand({
         ctx.registry,
         ctx.toolContext,
         ctx.messages,
+        ctx.sessionApprovedTools,
       )
 
       // Update shared state
@@ -193,7 +196,7 @@ registerCommand({
       ctx.sessionTotalTokens += turnTokens
 
       if (result.terminationReason === 'consecutive_denials') {
-        console.log(chalk.yellow('Task stopped because you denied 3 tool calls in a row.'))
+        console.log(chalk.yellow('Task stopped because you denied tool calls.'))
       } else if (result.terminationReason === 'max_tool_calls') {
         console.log(chalk.yellow('Task stopped because it reached the tool call limit.'))
       }

@@ -46,7 +46,7 @@ for (let i = 0; i < args.length; i++) {
 
 async function main() {
   console.clear()
-  printAssistantHeader()
+  printAssistantHeader('v1.0.0', workspaceRoot)
   console.log()
 
   // Load user configuration (Model priority: options > config > env > default)
@@ -74,6 +74,8 @@ async function main() {
   registerTool(registry, addMemoryTool)
   registerTool(registry, webSearchTool)
   registerTool(registry, webFetchTool)
+  
+  const sessionApprovedTools = new Set<string>();    // Session tool whitelist
 
   const systemPrompt = buildSystemPrompt(workspaceRoot, memories)
   let messages: Message[] = [
@@ -84,7 +86,7 @@ async function main() {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk.gray(`${workspaceRoot} `) + chalk.green('> '),
+    prompt: chalk.green('> '),
   })
 
   const context: ToolContext = {
@@ -99,6 +101,7 @@ async function main() {
     // cumulative token count for the session
     sessionTotalTokens: 0,
     toolContext: context,
+    sessionApprovedTools,
     userConfig,
     provider,
     registry,
@@ -107,25 +110,16 @@ async function main() {
     isProcessing: false,
   }
 
-  console.log(
-    chalk.cyan('/exit') + chalk.dim(' quit · ') +
-    chalk.cyan('/reset') + chalk.dim(' reset · ') +
-    chalk.cyan('/info') + chalk.dim(' status · ') +
-    chalk.cyan('/auto') + chalk.dim('/') + chalk.cyan('ask') + chalk.dim(' toggle approval mode · ') +
-    chalk.cyan('/remember') + chalk.dim(' save memory') +
-    chalk.cyan('/task') + chalk.dim(' structured task')
-  )
-  console.log()
   printUserMessageStart()
   rl.prompt()
 
   rl.on('line', async (line) => {
-    const input = line.trim()
-
     // If the Agent is processing (including approval), ignore any input
     if (cmdCtx.isProcessing) {
       return
     }
+
+    const input = line.trim()
 
     printUserMessageEnd()
     if (!input) {
@@ -145,7 +139,7 @@ async function main() {
     try {
       printAssistantReplyStart()
   
-      const result = await agentLoop(provider, registry, context, messages)
+      const result = await agentLoop(provider, registry, context, messages, sessionApprovedTools)
       // Update messages with the result
       messages = result.updatedMessages
       // Update cumulative token counter
@@ -153,9 +147,9 @@ async function main() {
       cmdCtx.sessionTotalTokens += turnTokens
 
       if (result.terminationReason === 'consecutive_denials') {
-        console.log(chalk.yellow('Task stopped because you denied 3 tool calls in a row.'));
+        console.log(chalk.yellow('Reply stopped because you denied tool calls.'));
       } else if (result.terminationReason === 'max_tool_calls') {
-        console.log(chalk.yellow('Task stopped because it reached the tool call limit.'));
+        console.log(chalk.yellow('Reply stopped because it reached the tool call limit.'));
       }
       printStatus(cmdCtx.sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
       printAssistantReplyEnd()

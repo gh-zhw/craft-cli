@@ -1,5 +1,5 @@
 // src/agent-loop.ts
-import type { Message, ToolContext, LLMResponse } from './types.js'
+import type { Message, ToolContext, LLMResponse, ApprovalAction } from './types.js'
 import type { ChatCallbacks, LLMProvider } from './llm/provider.js'
 import type { ToolRegistry } from './tools/registry.js'
 import { getToolSchemas } from './tools/registry.js'
@@ -20,7 +20,7 @@ import {
 export interface AgentLoopResult {
   finalText: string;
   updatedMessages: Message[];
-  totalUsage: { input: number; output: number };
+  totalUsage: { input: number; output: number }
   terminationReason?: 'consecutive_denials' | 'max_tool_calls' | null;
 }
 
@@ -32,7 +32,8 @@ export async function agentLoop(
   provider: LLMProvider,
   registry: ToolRegistry,
   context: ToolContext,
-  messages: Message[]
+  messages: Message[],
+  sessionApprovedTools: Set<string>,
 ): Promise<AgentLoopResult> {
   // Convert tools to Anthropic format once (they are immutable per loop)
   const toolSchemas = getToolSchemas(registry)
@@ -92,16 +93,7 @@ export async function agentLoop(
           continue
         }
 
-        const tool = registry.get(tc.name)
-        if (!tool) {
-          messages.push({
-            role: 'tool' as const,
-            content: `Error: Unknown tool requested: ${tc.name}`,
-            tool_call_id: tc.id,
-          })
-          continue
-        }
-
+        // 1. Check total call limit (before counting this call)
         if (maxToolCallsPerTurn > 0 && totalToolCalls >= maxToolCallsPerTurn) {
           shouldStop = true
           terminationType = 'max_tool_calls'
@@ -115,36 +107,69 @@ export async function agentLoop(
         }
         totalToolCalls++
 
-        const level = getPermissionLevel(tc.name, tc.arguments, context.config)
-        const msg = getApprovalMessage(tc.name, tc.arguments, level)
-        let approved = true
+        const tool = registry.get(tc.name)
+        if (!tool) {
+          messages.push({
+            role: 'tool' as const,
+            content: `Error: Unknown tool requested: ${tc.name}`,
+            tool_call_id: tc.id,
+          })
+          continue
+        }
 
-        if (level !== 'auto' && !context.config.autoApprove) {
-          printToolCallStart(tc.name, tc.arguments)
-          try {
-            approved = await context.askApproval(msg, level)
-          } catch {
-            approved = false
-          }
-          if (!approved) {
+        const level = getPermissionLevel(tc.name, tc.arguments, context.config)
+        const approvalMessage = getApprovalMessage(tc.name, tc.arguments, level)
+        // Determine if auto‑approved: auto level, global autoApprove, or session whitelist
+        const isAutoApproved =
+          level === 'auto' ||
+          context.config.autoApprove ||
+          sessionApprovedTools.has(tc.name)
+        // 2. Start spinner for this tool call
+        printToolCallStart(tc.name, tc.arguments)
+
+        if (!isAutoApproved) {
+          // Ask for approval (spinner is paused inside askApproval)
+          const action: ApprovalAction = await context.askApproval({
+            toolName: tc.name,
+            args: tc.arguments,
+            message: approvalMessage,
+            level,
+          })
+
+          if (action === 'approve_all') {
+            sessionApprovedTools.add(tc.name)
+            // fall through to execution
+          } else if (action === 'deny') {
+            consecutiveDenials++
             messages.push({
               role: 'tool' as const,
               content: 'Error: User denied the operation.',
               tool_call_id: tc.id,
             })
-            consecutiveDenials++
             if (maxConsecutiveDenials > 0 && consecutiveDenials >= maxConsecutiveDenials) {
               shouldStop = true
               terminationType = 'consecutive_denials'
               terminationMessage = 'Task terminated: too many consecutive tool call denials.'
             }
+            continue // skip execution
+          } else if (action === 'stop') {
+            shouldStop = true
+            terminationType = 'consecutive_denials' // reuse for now
+            terminationMessage = 'Task stopped by user.'
+            messages.push({
+              role: 'tool' as const,
+              content: 'Error: Task stopped by user.',
+              tool_call_id: tc.id,
+            })
             continue
           }
+          // action === 'approve' → continue to execution
         }
-        // Reset the continuous rejection counter
+
+        // 3. Reset denial counter on any execution path (auto or approved)
         consecutiveDenials = 0
 
-        printToolCallStart(tc.name, tc.arguments)
+        // 4. Execute the tool (spinner is already running, or has been resumed)
         try {
           const result = await tool.execute(tc.arguments, context)
           printToolCallEnd(tc.name, tc.arguments)
@@ -158,7 +183,7 @@ export async function agentLoop(
           messages.push({
             role: 'tool',
             content: `Error: ${err.message}`,
-            tool_call_id: tc.id
+            tool_call_id: tc.id,
           })
         }
       }

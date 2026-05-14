@@ -97,34 +97,44 @@ export function finishStream() {
 }
 
 /**
- * Print a separator and a bold "You:" label to mark the start of a user message block.
+ * Print a separator and a bold "You" label to mark the start of a user message block.
  */
 export function printUserMessageStart() {
-  console.log(chalk.bold.hex('#ee7b29')('You:'))
+  console.log(chalk.bold.hex('#ee7b29')(`• You`))
 }
 
 /**
  * Print the closing separator line after a user message block.
  */
 export function printUserMessageEnd() {
-  const userLine = chalk.hex('#ee7b29')('─'.repeat(getDialogBoxWidth()))
-  console.log(userLine)
+  const now = new Date()
+  const time = `[${now.toTimeString().slice(0, 8)}]`
+  const totalWidth = getDialogBoxWidth()
+  const leftDashCount = Math.floor(totalWidth * 0.9)
+  const rightDashCount = totalWidth - leftDashCount - time.length
+  const line = '='.repeat(leftDashCount) + time + '='.repeat(Math.max(0, rightDashCount))
+  console.log(chalk.hex('#ee7b29')(line))
 }
 
 /**
- * Print a visually distinct separator line and a bold "Assistant:" label
+ * Print a visually distinct separator line and a bold "Craft" label
  * to indicate the start of an assistant's response block.
  */
 export function printAssistantReplyStart() {
-  console.log(chalk.bold.hex('#3171df')('Craft:'))
+  console.log(chalk.bold.hex('#3171df')(`• Craft`))
 }
 
 /**
  * Print the closing separator line at the end of an assistant's response.
  */
 export function printAssistantReplyEnd() {
-  const assistantLine = chalk.hex('#3171df')('─'.repeat(getDialogBoxWidth()))
-  console.log(assistantLine)
+  const now = new Date()
+  const time = `[${now.toTimeString().slice(0, 8)}]`
+  const totalWidth = getDialogBoxWidth()
+  const leftDashCount = Math.floor(totalWidth * 0.9)
+  const rightDashCount = totalWidth - leftDashCount - time.length
+  const line = '='.repeat(leftDashCount) + time + '='.repeat(Math.max(0, rightDashCount))
+  console.log(chalk.hex('#3171df')(line))
 }
 
 /**
@@ -145,15 +155,35 @@ export function printMarkdown(text: string) {
  * Print the craft-cli header/logo at startup.
  */
 const logo = `
-   ██████╗ ██████╗  █████╗ ███████╗████████╗     ██████╗██╗     ██╗
-  ██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝    ██╔════╝██║     ██║
-  ██║     ██████╔╝███████║█████╗     ██║       ██║     ██║     ██║
-  ██║     ██╔══██╗██╔══██║██╔══╝     ██║       ██║     ██║     ██║
-  ╚██████╗██║  ██║██║  ██║██║        ██║       ╚██████╗███████╗██║
-   ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝        ╚═════╝╚══════╝╚═╝`
-export function printAssistantHeader() {
-  const text = chalk.hex('#b11f1f')(logo)
-  console.log(boxen(text, { padding: 1, borderColor: '#c51818', borderStyle: 'round' }))
+    ██████╗ ██████╗  █████╗ ███████╗████████╗
+    ██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
+██║     ██████╔╝███████║█████╗     ██║
+██║     ██╔══██╗██╔══██║██╔══╝     ██║
+╚██████╗██║  ██║██║  ██║██║        ██║
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝`
+export function printAssistantHeader(version: string, workspaceRoot?: string) {
+  const text = chalk.hex('#ee2a2a')(logo)
+  const commandsTips =
+    chalk.cyan('/exit') + chalk.dim(' quit · ') +
+    chalk.cyan('/reset') + chalk.dim(' reset · ') +
+    chalk.cyan('/info') + chalk.dim(' status\n') +
+    chalk.cyan('/auto') + chalk.dim('/') + chalk.cyan('ask') + chalk.dim(' toggle approval mode · ') +
+    chalk.cyan('/remember') + chalk.dim(' save memory · ') +
+    chalk.cyan('/task') + chalk.dim(' structured task')
+  let content = text + '\n\n' + commandsTips
+  if (workspaceRoot && workspaceRoot?.length > 0) {
+    content += '\n\n' + chalk.gray(`Workspace: ${workspaceRoot}`)
+  }
+
+  console.log(boxen(content, {
+    textAlignment: 'center',
+    borderColor: '#ee2a2a',
+    borderStyle: 'bold',
+    title: version,
+    titleAlignment: 'left',
+    padding: 0.5,
+    margin: 0,
+  }))
 }
 
 /**
@@ -184,7 +214,7 @@ export function printToolCallEnd(name: string, args: any, error?: boolean) {
   if (argsStr.length > 50) {
     argsPreview = argsStr.slice(0, 50) + '...'
   }
-  const text = `Tool called: ${name} ${argsPreview}`
+  const text = ` Tool called: ${name} ${argsPreview}`
   if (spinner) {
     if (error) {
       stopSpinner(chalk.red(text), { type: 'fail' })
