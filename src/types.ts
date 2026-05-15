@@ -2,6 +2,9 @@
 import { z } from 'zod'
 import type { UserConfig } from './utils/config.js'
 import type { PermissionLevel } from './utils/permission.js'
+import { LLMProvider } from './llm/provider.js';
+import { ToolRegistry } from './tools/registry.js';
+import { AgentRuntime } from './agent-runtime.js';
 
 
 // ---------- Approval Types ----------
@@ -74,3 +77,63 @@ export interface SessionInfoProps {
   messagesCount: number;
 }
 
+/**
+ * Session‑wide state that REPL commands can read or mutate.
+ * All mutable fields are updated in place.
+ */
+export interface SessionContext {
+  /** The current conversation messages (synced from runtime) */
+  messages: Message[];
+  /** Base system prompt (used when resetting) */
+  systemPrompt: string;
+  /** Session token counter (will be mutated) */
+  sessionTotalTokens: number;
+  /** The tool context (including config) – its config.autoApprove may be changed */
+  toolContext: ToolContext;
+  /** Original user config (for restoring autoApprove) */
+  userConfig: { autoApprove?: boolean };
+  /** Session tool whitelist (auto approve) */
+  sessionApprovedTools: Set<string>;
+  /** The LLM provider (for info command) */
+  provider: LLMProvider;
+  /** The tool registry (for info command) */
+  registry: ToolRegistry;
+  /** Workspace root */
+  workspaceRoot: string;
+  /** readline interface (for prompt after command) */
+  rl: import('node:readline').Interface;
+  /** Marker that the REPL is processing a command (prevents duplicate prompts) */
+  isProcessing: boolean;
+  /** The persistent AgentRuntime instance for this session */
+  runtime: AgentRuntime;
+}
+
+// ---------- Agent Runtime ----------
+export interface RuntimeConfig extends UserConfig {
+
+}
+
+export interface AgentRuntimeOptions {
+  provider: any;                // LLMProvider
+  registry: any;                // ToolRegistry
+  toolContext: ToolContext;
+  systemPrompt: string;
+  config: RuntimeConfig;
+  initialMessages?: Message[];  // Existing historical messages (excluding system messages)
+}
+
+export interface AgentRunResult {
+  finalText: string;
+  updatedMessages: Message[];
+  totalUsage: { input: number; output: number };
+  terminationReason?: 'end_turn' | 'max_tokens' | 'consecutive_denials' | 'max_tool_calls' | 'user_stop';
+}
+
+export interface AgentEvents {
+  text: (chunk: string) => void;
+  toolStart: (name: string, args: Record<string, any>) => void;
+  toolEnd: (name: string, result: string, error?: boolean) => void;
+  approvalRequired: (request: ApprovalRequest) => Promise<ApprovalAction>;
+  terminated: (reason: string) => void;
+  streamFinished: () => void;
+}

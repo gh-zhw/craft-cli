@@ -11,8 +11,8 @@ import { globTool } from './tools/glob.js'
 import { addMemoryTool } from './tools/add-memory.js'
 import { webSearchTool } from './tools/web-search.js';
 import { webFetchTool } from './tools/web-fetch.js';
-import { agentLoop } from './agent-loop.js'
-import type { Message, ToolContext } from './types.js'
+import { AgentRuntime } from './agent-runtime.js'
+import type { ToolContext, SessionContext } from './types.js'
 import {
   printAssistantHeader,
   printStatus,
@@ -20,11 +20,15 @@ import {
   printUserMessageEnd,
   printAssistantReplyStart,
   printAssistantReplyEnd,
+  printStreamingText,
+  printToolCallStart,
+  printToolCallEnd,
+  finishStream,
 } from './ui/chalk-ui.js'
 import { loadConfig, loadEnv } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
 import { loadMemories } from './utils/memory.js'
-import { tryExecuteCommand, type CommandContext } from './repl-commands.js'
+import { tryExecuteCommand } from './repl-commands.js'
 import chalk from 'chalk'
 import { buildSystemPrompt } from './utils/prompts.js'
 
@@ -78,9 +82,6 @@ async function main() {
   const sessionApprovedTools = new Set<string>();    // Session tool whitelist
 
   const systemPrompt = buildSystemPrompt(workspaceRoot, memories)
-  let messages: Message[] = [
-    { role: 'system', content: systemPrompt }
-  ]
 
   // Readline setup
   const rl = readline.createInterface({
@@ -95,10 +96,26 @@ async function main() {
     config: { ...userConfig, autoApprove: userConfig.autoApprove },
   }
 
-  const cmdCtx: CommandContext = {
-    messages,
+  // Create AgentRuntime (persistent instance)
+  const runtime = new AgentRuntime({
+    provider,
+    registry,
+    toolContext: context,
     systemPrompt,
-    // cumulative token count for the session
+    config: userConfig,
+    initialMessages: [],
+  });
+
+  // Register UI event
+  runtime.on('text', (chunk) => printStreamingText(chunk));
+  runtime.on('toolStart', (name, args) => printToolCallStart(name, args));
+  runtime.on('toolEnd', (name, result, error) => printToolCallEnd(name, result, error));
+  runtime.on('streamFinished', () => finishStream());
+
+  const sessionCtx: SessionContext = {
+    runtime,
+    messages: runtime.getMessages(),
+    systemPrompt,
     sessionTotalTokens: 0,
     toolContext: context,
     sessionApprovedTools,
@@ -115,7 +132,7 @@ async function main() {
 
   rl.on('line', async (line) => {
     // If the Agent is processing (including approval), ignore any input
-    if (cmdCtx.isProcessing) {
+    if (sessionCtx.isProcessing) {
       return
     }
 
@@ -129,36 +146,33 @@ async function main() {
     }
 
     // Special commands
-    const handled = await tryExecuteCommand(input, cmdCtx)
+    const handled = await tryExecuteCommand(input, sessionCtx)
     if (handled) return
 
-    // Normal user message
-    messages.push({ role: 'user', content: input })
-
-    cmdCtx.isProcessing = true
+    sessionCtx.isProcessing = true
     try {
       printAssistantReplyStart()
   
-      const result = await agentLoop(provider, registry, context, messages, sessionApprovedTools)
+      const result = await runtime.run(input)
       // Update messages with the result
-      messages = result.updatedMessages
+      sessionCtx.messages = result.updatedMessages
       // Update cumulative token counter
       const turnTokens = result.totalUsage.input + result.totalUsage.output
-      cmdCtx.sessionTotalTokens += turnTokens
+      sessionCtx.sessionTotalTokens += turnTokens
 
       if (result.terminationReason === 'consecutive_denials') {
         console.log(chalk.yellow('Reply stopped because you denied tool calls.'));
       } else if (result.terminationReason === 'max_tool_calls') {
         console.log(chalk.yellow('Reply stopped because it reached the tool call limit.'));
       }
-      printStatus(cmdCtx.sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
+      printStatus(sessionCtx.sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
       printAssistantReplyEnd()
     } catch (error: any) {
       console.error('System Error:', error.message)
       printAssistantReplyEnd()
     }
 
-    cmdCtx.isProcessing = false
+    sessionCtx.isProcessing = false
     printUserMessageStart()
     rl.prompt()
   })

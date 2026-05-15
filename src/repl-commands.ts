@@ -1,48 +1,18 @@
 // src/repl-commands.ts
-import type { Message, ToolContext } from './types.js'
-import type { LLMProvider } from './llm/provider.js'
-import type { ToolRegistry } from './tools/registry.js'
+import type { SessionContext } from './types.js'
 import { addMemory, hasMemories } from './utils/memory.js'
 import { printAssistantReplyEnd, printAssistantReplyStart, printSessionInfo } from './ui/chalk-ui.js'
 import { printAssistantHeader, printUserMessageStart } from './ui/chalk-ui.js'
-import { agentLoop } from './agent-loop.js'
+import { AgentRuntime } from './agent-runtime.js'
 import { buildTaskPrompt } from './utils/prompts.js'
 import { printStatus } from './ui/chalk-ui.js'
 import chalk from 'chalk'
 
-/**
- * Context that specialized commands can read or modify.
- * All mutable fields are updated in place by the commands.
- */
-export interface CommandContext {
-  /** The current conversation messages (including system prompt) */
-  messages: Message[];
-  /** Base system prompt (used when resetting) */
-  systemPrompt: string;
-  /** Session token counter (will be mutated) */
-  sessionTotalTokens: number;
-  /** The tool context (including config) – its config.autoApprove may be changed */
-  toolContext: ToolContext;
-  /** Original user config (for restoring autoApprove) */
-  userConfig: { autoApprove?: boolean };
-  /** Session tool whitelist (auto approve) */
-  sessionApprovedTools: Set<string>;
-  /** The LLM provider (for info command) */
-  provider: LLMProvider;
-  /** The tool registry (for info command) */
-  registry: ToolRegistry;
-  /** Workspace root */
-  workspaceRoot: string;
-  /** readline interface (for prompt after command) */
-  rl: import('node:readline').Interface;
-  /** Marker that the REPL is processing a command (prevents duplicate prompts) */
-  isProcessing: boolean;
-}
 
 export interface ReplCommand {
   name: string
   description?: string
-  execute: (input: string, ctx: CommandContext) => Promise<void> | void
+  execute: (input: string, ctx: SessionContext) => Promise<void> | void
 }
 
 /** Registry of all available REPL commands. */
@@ -62,7 +32,7 @@ export function registerCommand(cmd: ReplCommand): void {
  * Try to match the input against a registered command.
  * Returns true if a command handled the input, false otherwise.
  */
-export async function tryExecuteCommand(input: string, ctx: CommandContext): Promise<boolean> {
+export async function tryExecuteCommand(input: string, ctx: SessionContext): Promise<boolean> {
   const trimmed = input.trimEnd()
   // direct match (e.g., /exit, /info)
   if (commands.has(trimmed)) {
@@ -91,8 +61,8 @@ registerCommand({
   name: '/reset',
   description: 'Clear conversation and reset session',
   execute: (_input, ctx) => {
-    ctx.messages.length = 0
-    ctx.messages.push({ role: 'system', content: ctx.systemPrompt })
+    ctx.runtime.reset(ctx.systemPrompt)
+    ctx.messages = ctx.runtime.getMessages()
     ctx.sessionTotalTokens = 0
     console.clear()
     printAssistantHeader('v1.0.0', ctx.workspaceRoot)
@@ -176,22 +146,15 @@ registerCommand({
     }
 
     const wrapped = buildTaskPrompt(taskDesc)
-    ctx.messages.push({ role: 'user', content: wrapped })
 
     // Prevent user input during execution
     ctx.isProcessing = true
     try {
       printAssistantReplyStart()
-      const result = await agentLoop(
-        ctx.provider,
-        ctx.registry,
-        ctx.toolContext,
-        ctx.messages,
-        ctx.sessionApprovedTools,
-      )
+      const result = await ctx.runtime.run(wrapped)
 
-      // Update shared state
-      ctx.messages = result.updatedMessages
+      // Sync messages back to the context
+      ctx.messages = ctx.runtime.getMessages()
       const turnTokens = result.totalUsage.input + result.totalUsage.output
       ctx.sessionTotalTokens += turnTokens
 

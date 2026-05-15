@@ -1,7 +1,7 @@
 // src/tools/run-shell.ts
 import { z } from 'zod'
 import { exec } from 'node:child_process'
-import { isDangerousCommand, sanitizeCommand } from '../utils/guard.js'
+import { sanitizeCommand } from '../utils/guard.js'
 import type { Tool } from '../types.js'
 
 const paramsSchema = z.object({
@@ -28,17 +28,21 @@ const MAX_OUTPUT_LEN = 8_000
 
 export const runShellTool: Tool<z.input<typeof paramsSchema>> = {
   name: 'run_shell',
-  description: 'Execute a shell command in the workspace directory using the shell appropriate for the current platform (e.g., cmd on Windows, bash on Unix). Returns combined stdout and stderr (truncated at 8KB). Dangerous commands are rejected.',
+  description: 'Execute a shell command in the workspace directory using the shell appropriate for the current platform (e.g., `dir` for cmd on Windows, `ls` for bash on Unix). Returns combined stdout and stderr (truncated at 8KB). Dangerous commands are rejected.',
   parameters: paramsSchema,
   async execute(args, ctx) {
-    const command = sanitizeCommand(args.command)
     const timeoutSec = args.timeout ?? 30
     const timeoutMs = timeoutSec * 1000
+    const originalCommand = sanitizeCommand(args.command)
+    // For Windows, switch console code page to UTF-8 to avoid garbled output
+    const command = process.platform === 'win32'
+      ? `chcp 65001 > nul 2>&1 && ${originalCommand}`
+      : originalCommand
 
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const { stdout, stderr } = await execAsync(command , {
         cwd: ctx.workspaceRoot,
-        timeout: timeoutMs
+        timeout: timeoutMs,
       })
 
       let output = stdout || ''

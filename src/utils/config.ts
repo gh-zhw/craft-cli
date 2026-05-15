@@ -13,15 +13,15 @@ export interface ThinkingConfig {
 }
 
 export interface UserConfig {
-  provider?: 'anthropic' | 'openai';
-  baseUrl?: string;
-  model?: string;
-  thinking?: ThinkingConfig;
-  autoApprove?: boolean;
-  autoApproveSafeCommands?: boolean;
-  outputStyle?: 'stream' | 'markdown';
-  maxConsecutiveDenials?: number;
-  maxToolCallsPerTurn?: number;
+  provider: 'anthropic' | 'openai';
+  baseUrl: string;
+  model: string;
+  thinking: ThinkingConfig;
+  autoApprove: boolean;
+  autoApproveSafeCommands: boolean;
+  outputStyle: 'stream' | 'markdown';
+  maxConsecutiveDenials: number;
+  maxToolCallsPerTurn: number;
 }
 
 const DEFAULT_CONFIG: UserConfig = {

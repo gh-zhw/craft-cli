@@ -5,10 +5,11 @@ import ora, { Ora } from 'ora'
 import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
 import { SessionInfoProps } from '../types'
+import { formatToolDisplay } from './tool-display'
 
 
 function getDialogBoxWidth(): number {
-  return process.stdout.columns ?? 80;
+  return process.stdout.columns ?? 80
 }
 
 
@@ -192,37 +193,30 @@ export function printAssistantHeader(version: string, workspaceRoot?: string) {
  * @param name - Name of the tool being called.
  * @param args - Arguments passed to the tool (will be previewed).
  */
-export function printToolCallStart(name: string, args: any) {
-  const argsStr = JSON.stringify(args)
-  let argsPreview = argsStr
-  if (argsStr.length > 50) {
-    argsPreview = argsStr.slice(0, 50) + '...'
-  }
-  startSpinner(chalk.yellow(`Calling tool: ${name} ${argsPreview}`))
+export function printToolCallStart(name: string, args: Record<string, any>) {
+  const toolDesc = formatToolDisplay(name, args)
+  startSpinner(chalk.yellow(toolDesc))
 }
 
 /**
  * Update the tool call spinner text when done.
  *
  * @param name - Name of the tool that finished.
- * @param args - Arguments of the tool call.
+ * @param result - Result of the tool call.
  * @param error - Whether the tool execution failed (default false).
  */
-export function printToolCallEnd(name: string, args: any, error?: boolean) {
-  const argsStr = JSON.stringify(args)
-  let argsPreview = argsStr
-  if (argsStr.length > 50) {
-    argsPreview = argsStr.slice(0, 50) + '...'
-  }
-  const text = ` Tool called: ${name} ${argsPreview}`
+export function printToolCallEnd(name: string, result: string, error?: boolean) {
+  const firstLine = result.split(/\r?\n/)[0]
+  const toolDesc = `Tool ${name}: ${firstLine}`
+
   if (spinner) {
     if (error) {
-      stopSpinner(chalk.red(text), { type: 'fail' })
+      stopSpinner(chalk.red(toolDesc), { type: 'fail' })
     } else {
-      stopSpinner(chalk.dim(text))
+      stopSpinner(chalk.dim(toolDesc))
     }
   } else {
-    console.log(text)
+    console.log(toolDesc)
   }
 }
 

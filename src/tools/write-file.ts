@@ -19,6 +19,6 @@ export const writeFileTool: Tool<z.input<typeof paramsSchema>> = {
     const fullPath = validatePath(args.path, ctx.workspaceRoot)
     mkdirSync(dirname(fullPath), { recursive: true })
     writeFileSync(fullPath, args.content, 'utf-8')
-    return `Successfully wrote to #{args.path}`
+    return `Successfully wrote to ${args.path}`
   }
 }
