@@ -11,18 +11,54 @@ export function formatToolDisplay(toolName: string, args: Record<string, any>): 
     case 'write_file': {
       const path = args.path as string
       const content = args.content as string
-      const preview = content.length > 200
-        ? content.slice(0, 200) + '...'
-        : content
       const sizeKB = (Buffer.byteLength(content, 'utf-8') / 1024).toFixed(1)
-      return `Write ${chalk.cyan(path)} (${sizeKB} KB)\n${chalk.dim(preview)}`
+      const lines = content.split('\n')
+      const previewLines = lines.slice(0, 8)
+      const lineCountStr = lines.length === 1 ? '1 line' : `${lines.length} lines`
+
+      let preview = ''
+      previewLines.forEach((line, idx) => {
+        const lineNo = idx + 1
+        preview += chalk.dim(`${lineNo}: `) + chalk.dim(line) + '\n'
+      })
+      if (lines.length > previewLines.length) {
+        preview += chalk.dim(`... (${lines.length - previewLines.length} more lines)`)
+      }
+      return `Write ${chalk.cyan(path)} (${sizeKB} KB, ${lineCountStr})\n${preview.trimEnd()}`
     }
     case 'edit_file': {
       const path = args.path as string
       const oldStr = args.old_string as string
       const newStr = args.new_string as string
-      const diffPreview = `${chalk.red(oldStr.slice(0, 40))} → ${chalk.green(newStr.slice(0, 40))}`
-      return `Edit ${chalk.cyan(path)}\n${diffPreview}`
+      const oldLines = oldStr.split('\n')
+      const newLines = newStr.split('\n')
+
+      // Build a simple diff view: removed lines in red, added lines in green.
+      // We'll show all old lines with '-' and all new lines with '+'.
+      let diffPreview = ''
+      oldLines.forEach((line) => {
+        diffPreview += chalk.red(`- ${line}`) + '\n'
+      })
+      newLines.forEach((line) => {
+        diffPreview += chalk.green(`+ ${line}`) + '\n'
+      })
+
+      // Truncate if too long (max 10 total lines displayed)
+      const totalLines = oldLines.length + newLines.length
+      if (totalLines > 10) {
+        const truncatedOld = oldLines.slice(0, 5)
+        const truncatedNew = newLines.slice(0, 5)
+        diffPreview = ''
+        truncatedOld.forEach((line) => {
+          diffPreview += chalk.red(`- ${line}`) + '\n'
+        })
+        diffPreview += chalk.dim('... (truncated)') + '\n'
+        truncatedNew.forEach((line) => {
+          diffPreview += chalk.green(`+ ${line}`) + '\n'
+        })
+      }
+
+      return `Edit ${chalk.cyan(path)}\n${diffPreview.trimEnd()}`
     }
 
     case 'run_shell': {
