@@ -169,8 +169,9 @@ export function printAssistantHeader(version: string, workspaceRoot?: string) {
     chalk.cyan('/reset') + chalk.dim(' reset · ') +
     chalk.cyan('/info') + chalk.dim(' status\n') +
     chalk.cyan('/auto') + chalk.dim('/') + chalk.cyan('ask') + chalk.dim(' toggle approval mode · ') +
-    chalk.cyan('/remember') + chalk.dim(' save memory · ') +
-    chalk.cyan('/task') + chalk.dim(' structured task')
+    chalk.cyan('/remember') + chalk.dim(' save memory\n') +
+    chalk.cyan('/task') + chalk.dim(' structured task · ') +
+    chalk.cyan('/compact') + chalk.dim(' compact context')
   let content = text + '\n\n' + commandsTips
   if (workspaceRoot && workspaceRoot?.length > 0) {
     content += '\n\n' + chalk.gray(`Workspace: ${workspaceRoot}`)
@@ -223,34 +224,46 @@ export function printToolCallEnd(name: string, result: string, error?: boolean) 
 /**
  * Display token consumption with a percentage bar and colour-coded warnings.
  *
- * @param tokensUsed - Total tokens used in the current conversation.
- * @param contextLimit - Maximum context window of the model.
- * @param model - Current model identifier (e.g. "deepseek-v4-flash").
+ * @param contextTokens - Total tokens used in the current conversation (context window usage).
+ * @param contextLimit - Maximum context window size of the model.
+ * @param apiUsage - Optional breakdown of API token usage; contains `input` and `output` token counts.
+ * @param model - Optional current model identifier (e.g. "deepseek-v4-flash").
  */
-export function printStatus(tokensUsed: number, contextLimit: number, model?: string) {
-  const pct = (tokensUsed / contextLimit) * 100
-  const usedStr = `${tokensUsed} (${(tokensUsed / 1000).toFixed(1)}k)`
+export function printStatus(
+  contextTokens: number,
+  contextLimit: number,
+  apiUsage?: { input: number; output: number },
+  model?: string,
+) {
+  const pct = (contextTokens / contextLimit) * 100
+  const usedStr = `${contextTokens} (${(contextTokens / 1000).toFixed(1)}k)`
   const limitStr = `${contextLimit} (${(contextLimit / 1000).toFixed(0)}k)`
   const pctStr = `${pct.toFixed(1)}%`
 
-  let statusText: string
-  let colorStatusText: string
+  const statusText = `Context window: ${usedStr} / ${limitStr} (${pctStr})`
+  let coloredstatusText: string
   if (pct >= 95) {
-    statusText = `Tokens: ${usedStr} / ${limitStr} (${pctStr})`
-    colorStatusText = chalk.red(statusText)
+    coloredstatusText = chalk.red(statusText)
   } else if (pct >= 80) {
-    statusText = `Tokens: ${usedStr} / ${limitStr} (${pctStr})`
-    colorStatusText = chalk.yellow(statusText)
+    coloredstatusText = chalk.yellow(statusText)
   } else {
-    statusText = `Tokens: ${usedStr} / ${limitStr} (${pctStr})`
-    colorStatusText = chalk.dim(statusText)
+    coloredstatusText = chalk.green(statusText)
   }
 
-  const modelStr = model ? model : ''
-  const colorModelStr = chalk.dim(model)
+  let modelTokenText = ''
+  let coloredModelTokenText = ''
+  if (model) {
+    modelTokenText += model
+    coloredModelTokenText += chalk.cyan(model)
+  }
+  if (apiUsage) {
+    const usageText = ` ↑${apiUsage.input} ↓${apiUsage.output}`
+    modelTokenText += usageText
+    coloredModelTokenText += chalk.gray(usageText)
+  }
 
-  const padding = Math.max(1, getDialogBoxWidth() - modelStr.length - statusText.length)
-  console.log(colorModelStr + ' '.repeat(padding) + colorStatusText)
+  const padding = Math.max(1, getDialogBoxWidth() - modelTokenText.length - statusText.length)
+  console.log(coloredModelTokenText + ' '.repeat(padding) + coloredstatusText)
 }
 
 /**

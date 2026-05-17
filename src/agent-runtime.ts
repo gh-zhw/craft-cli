@@ -8,18 +8,27 @@ import type { ToolRegistry } from './tools/registry.js'
 import { getToolSchemas } from './tools/registry.js'
 import { getPermissionLevel, getApprovalMessage } from './utils/permission.js'
 import { EventEmitter } from './utils/event-emitter.js'
+import { TokenCounter } from './utils/token-counter.js'
+import { ContextCompressionConfig } from './utils/config.js'
 
 export class AgentRuntime {
   private provider: LLMProvider
+  private config: AgentRuntimeOptions['config']
+  private compressionConfig: ContextCompressionConfig
+
   private registry: ToolRegistry
   private toolContext: any
-  private config: AgentRuntimeOptions['config']
+  private totalToolCalls = 0
+  private consecutiveDenials = 0
+  private sessionApprovedTools = new Set<string>()
+
   private messages: Message[]
+  private tokenCounter: TokenCounter
+  private contextTokens = 0
+  private lastApiUsage = { input: 0, output: 0 }
   private totalInput = 0
   private totalOutput = 0
-  private consecutiveDenials = 0
-  private totalToolCalls = 0
-  private sessionApprovedTools = new Set<string>()
+
   private events = new EventEmitter<AgentEvents>()
 
   constructor(options: AgentRuntimeOptions) {
@@ -31,6 +40,8 @@ export class AgentRuntime {
       { role: 'system', content: options.systemPrompt },
       ...(options.initialMessages ?? []),
     ]
+    this.compressionConfig = options.config.contextCompression
+    this.tokenCounter = this.provider.createTokenCounter()
   }
 
   on<K extends keyof AgentEvents>(event: K, listener: AgentEvents[K]) {
@@ -40,9 +51,14 @@ export class AgentRuntime {
   getMessages(): Message[] {
     return this.messages
   }
-
   getTokenUsage() {
     return { input: this.totalInput, output: this.totalOutput }
+  }
+  getContextTokens() {
+    return this.contextTokens
+  }
+  getLastApiUsage() {
+    return this.lastApiUsage
   }
 
   async run(userMessage: string): Promise<AgentRunResult> {
@@ -56,6 +72,11 @@ export class AgentRuntime {
     const toolSchemas = getToolSchemas(this.registry)
 
     while (true) {
+      // Context compression check
+      if (this.config.contextCompression.enabled) {
+        await this.maybeCompactContext()
+      }
+
       const callbacks = {
         onText: (chunk: string) => {
           this.events.emit('text', chunk)
@@ -72,6 +93,7 @@ export class AgentRuntime {
         this.events.emit('streamFinished')
       }
 
+      this.lastApiUsage = { input: response.usage.input, output: response.usage.output }
       this.totalInput += response.usage.input
       this.totalOutput += response.usage.output
 
@@ -85,6 +107,7 @@ export class AgentRuntime {
 
         const terminationResult = await this.executeToolCalls(response.toolCalls)
         if (terminationResult) {
+          this.events.emit('terminated', terminationResult.reason)
           return {
             finalText: terminationResult.message,
             updatedMessages: this.messages,
@@ -96,9 +119,8 @@ export class AgentRuntime {
       }
 
       // End of turn / max_tokens
-      if (response.stopReason === 'max_tokens') {
-        this.events.emit('terminated', 'max_tokens')
-      }
+      const reason = response.stopReason === 'max_tokens' ? 'max_tokens' : 'end_turn'
+      this.events.emit('terminated', reason)
 
       this.messages.push({
         role: 'assistant',
@@ -106,11 +128,13 @@ export class AgentRuntime {
         contentBlocks: response.contentBlocks,
       })
 
+      this.contextTokens = await this.tokenCounter.countMessages(this.messages);
+
       return {
         finalText: response.text,
         updatedMessages: this.messages,
         totalUsage: { input: this.totalInput, output: this.totalOutput },
-        terminationReason: response.stopReason === 'max_tokens' ? 'max_tokens' : 'end_turn',
+        terminationReason: reason,
       }
     }
   }
@@ -230,5 +254,98 @@ export class AgentRuntime {
       }
     }
     return null
+  }
+
+  private async maybeCompactContext(force: boolean = false) {
+    const limit = this.provider.getModelMaxTokens()
+    this.contextTokens = await this.tokenCounter.countMessages(this.messages)
+    const ratio = this.contextTokens / limit
+    if (ratio < this.compressionConfig.lightTrimThreshold && !force) return
+
+    // Light Pruning
+    this.lightTrim()
+    this.contextTokens = await this.tokenCounter.countMessages(this.messages)
+    const newRatio = this.contextTokens / limit
+
+    if (newRatio >= this.compressionConfig.deepCompactThreshold || force) {
+      // Deep Compression
+      await this.deepCompact()
+      this.contextTokens = await this.tokenCounter.countMessages(this.messages)
+    }
+
+    this.events.emit('contextCompacted', {
+      contextTokens: this.contextTokens,
+      limit: this.provider.getModelMaxTokens()
+    })
+  }
+
+  private lightTrim() {
+    const keepTurns = this.compressionConfig.keepRecentTurns
+    // Find the latest messages from the first keepTurns users, retain them, and all subsequent messages
+    const userIndices: number[] = []
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      if (this.messages[i].role === 'user') userIndices.push(i)
+      if (userIndices.length >= keepTurns) break
+    }
+    
+    // If the number of rounds is insufficient, trim the entire history.
+    // userIndices[0] is the index of the latest user message.
+    const cutoff = userIndices.length >= keepTurns
+      ? userIndices[userIndices.length - 1]
+      : userIndices[0]
+    // For tool messages before the cutoff, replace the content with a placeholder
+    // messages[0] is a system message
+    for (let i = 1; i < cutoff; i++) {
+      if (this.messages[i].role === 'tool') {
+        this.messages[i].content = '[tool result truncated due to context limit]'
+        delete this.messages[i].contentBlocks
+      }
+    }
+  }
+
+  private async deepCompact() {
+    const keepTurns = this.compressionConfig.keepRecentTurns
+    const userIndices: number[] = []
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      if (this.messages[i].role === 'user') userIndices.push(i)
+      if (userIndices.length >= keepTurns) break
+    }
+
+    const cutoff = userIndices.length >= keepTurns
+      ? userIndices[userIndices.length - 1]
+      : userIndices[0]
+    // Get early messages (excluding system messages)
+    const earlyMessages = this.messages.slice(1, cutoff)
+    // Build text for the summary
+    let transcript = ''
+    for (const msg of earlyMessages) {
+      transcript += `${msg.role}: ${msg.content}\n`
+    }
+
+    try {
+      const summary = await this.provider.chat([
+        { role: 'user', content: `Please summarize the following conversation into a concise paragraph, retaining key facts, decisions, and context:\n\n${transcript}` }
+      ], [], { onText: undefined })  // No tool or callback required
+      const summaryText = summary.text
+
+      // Rebuild messages
+      const systemMsg = this.messages[0]
+      const recentMsgs = this.messages.slice(cutoff)
+      this.messages = [
+        systemMsg,
+        { role: 'user', content: `[Conversation summary]\n${summaryText}` },
+        ...recentMsgs,
+      ]
+    } catch (e) {
+      console.error('Context compression failed:', e)
+    }
+  }
+
+  async compactNow() {
+    if (this.config.contextCompression.enabled) {
+      await this.maybeCompactContext(true)
+    } else {
+      console.log('Context compression is disabled.')
+    }
   }
 }

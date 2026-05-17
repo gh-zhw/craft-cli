@@ -1,6 +1,6 @@
 // src/types.ts
 import { z } from 'zod'
-import type { UserConfig } from './utils/config.js'
+import type { ContextCompressionConfig, UserConfig } from './utils/config.js'
 import type { PermissionLevel } from './utils/permission.js'
 import { LLMProvider } from './llm/provider.js';
 import { ToolRegistry } from './tools/registry.js';
@@ -110,7 +110,6 @@ export interface SessionContext {
 
 // ---------- Agent Runtime ----------
 export interface RuntimeConfig extends UserConfig {
-
 }
 
 export interface AgentRuntimeOptions {
@@ -134,6 +133,7 @@ export interface AgentEvents {
   toolStart: (name: string, args: Record<string, any>) => void;
   toolEnd: (name: string, result: string, error?: boolean) => void;
   approvalRequired: (request: ApprovalRequest) => Promise<ApprovalAction>;
-  terminated: (reason: string) => void;
+  terminated: (reason: string | undefined) => void;
   streamFinished: () => void;
+  contextCompacted: (details: { contextTokens: number; limit: number }) => void;
 }

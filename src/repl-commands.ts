@@ -78,13 +78,11 @@ registerCommand({
     const memContent = input.slice('/remember '.length).trim()
     if (!memContent) {
       console.log(chalk.yellow('Usage: /remember <memory>'))
-      printUserMessageStart()
       ctx.rl.prompt()
       return
     }
     addMemory(ctx.workspaceRoot, memContent)
     console.log(chalk.gray('Memory saved.'))
-    printUserMessageStart()
     ctx.rl.prompt()
   },
 })
@@ -95,7 +93,6 @@ registerCommand({
   execute: (_input, ctx) => {
     ctx.toolContext.config.autoApprove = true
     console.log(chalk.green('✓ Auto-approve mode ON'))
-    printUserMessageStart()
     ctx.rl.prompt()
   },
 })
@@ -106,7 +103,6 @@ registerCommand({
   execute: (_input, ctx) => {
     ctx.toolContext.config.autoApprove = ctx.userConfig.autoApprove ?? false
     console.log(chalk.yellow('✓ Interactive approval mode restored'))
-    printUserMessageStart()
     ctx.rl.prompt()
   },
 })
@@ -128,7 +124,6 @@ registerCommand({
       autoApprove: ctx.toolContext.config.autoApprove ?? false,
       messagesCount: ctx.messages.length,
     })
-    printUserMessageStart()
     ctx.rl.prompt()
   },
 })
@@ -165,9 +160,10 @@ registerCommand({
       }
 
       printStatus(
-        ctx.sessionTotalTokens,
+        ctx.runtime.getContextTokens(),
         ctx.provider.getModelMaxTokens(),
-        ctx.provider.getModelName(),
+        ctx.runtime.getLastApiUsage(),
+        ctx.provider.getModelName()
       )
       printAssistantReplyEnd()
     } catch (error: any) {
@@ -178,5 +174,14 @@ registerCommand({
       printUserMessageStart()
       ctx.rl.prompt()
     }
+  },
+})
+
+registerCommand({
+  name: '/compact',
+  description: 'Compress conversation context to save tokens',
+  execute: async (_input, ctx) => {
+    await ctx.runtime.compactNow()
+    ctx.rl.prompt()
   },
 })

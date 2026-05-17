@@ -12,6 +12,14 @@ export interface ThinkingConfig {
   strength?: 'low' | 'medium' | 'high' | number;
 }
 
+export interface ContextCompressionConfig {
+  enabled: boolean;
+  lightTrimThreshold: number;
+  deepCompactThreshold: number;
+  keepRecentTurns: number;
+  summaryMaxTokens: number;
+}
+
 export interface UserConfig {
   provider: 'anthropic' | 'openai';
   baseUrl: string;
@@ -22,6 +30,7 @@ export interface UserConfig {
   outputStyle: 'stream' | 'markdown';
   maxConsecutiveDenials: number;
   maxToolCallsPerTurn: number;
+  contextCompression: ContextCompressionConfig
 }
 
 const DEFAULT_CONFIG: UserConfig = {
@@ -34,6 +43,13 @@ const DEFAULT_CONFIG: UserConfig = {
   outputStyle: 'stream',
   maxConsecutiveDenials: 3,
   maxToolCallsPerTurn: 15,
+  contextCompression: {
+    enabled: true,
+    lightTrimThreshold: 0.80,
+    deepCompactThreshold: 0.90,
+    keepRecentTurns: 5,
+    summaryMaxTokens: 1500,
+  },
 }
 
 export const CRAFT_DIR = '.craft'

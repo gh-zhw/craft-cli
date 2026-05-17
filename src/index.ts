@@ -9,8 +9,8 @@ import { runShellTool } from './tools/run-shell.js'
 import { grepTool } from './tools/grep.js'
 import { globTool } from './tools/glob.js'
 import { addMemoryTool } from './tools/add-memory.js'
-import { webSearchTool } from './tools/web-search.js';
-import { webFetchTool } from './tools/web-fetch.js';
+import { webSearchTool } from './tools/web-search.js'
+import { webFetchTool } from './tools/web-fetch.js'
 import { AgentRuntime } from './agent-runtime.js'
 import type { ToolContext, SessionContext } from './types.js'
 import {
@@ -35,16 +35,16 @@ import { buildSystemPrompt } from './utils/prompts.js'
 
 const workspaceRoot = process.cwd()
 
-const args = process.argv.slice(2);
-let cliProvider: string | undefined;
-let cliModel: string | undefined;
+const args = process.argv.slice(2)
+let cliProvider: string | undefined
+let cliModel: string | undefined
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--provider' && args[i + 1]) {
-    cliProvider = args[i + 1];
-    i++;
+    cliProvider = args[i + 1]
+    i++
   } else if (args[i] === '--model' && args[i + 1]) {
-    cliModel = args[i + 1];
-    i++;
+    cliModel = args[i + 1]
+    i++
   }
 }
 
@@ -79,7 +79,7 @@ async function main() {
   registerTool(registry, webSearchTool)
   registerTool(registry, webFetchTool)
   
-  const sessionApprovedTools = new Set<string>();    // Session tool whitelist
+  const sessionApprovedTools = new Set<string>()    // Session tool whitelist
 
   const systemPrompt = buildSystemPrompt(workspaceRoot, memories)
 
@@ -104,13 +104,34 @@ async function main() {
     systemPrompt,
     config: userConfig,
     initialMessages: [],
-  });
+  })
 
   // Register UI event
-  runtime.on('text', (chunk) => printStreamingText(chunk));
-  runtime.on('toolStart', (name, args) => printToolCallStart(name, args));
-  runtime.on('toolEnd', (name, result, error) => printToolCallEnd(name, result, error));
-  runtime.on('streamFinished', () => finishStream());
+  runtime.on('text', (chunk) => printStreamingText(chunk))
+  runtime.on('toolStart', (name, args) => printToolCallStart(name, args))
+  runtime.on('toolEnd', (name, result, error) => printToolCallEnd(name, result, error))
+  runtime.on('streamFinished', () => finishStream())
+  runtime.on('terminated', (reason) => {
+    if (reason === 'max_tokens') {
+      console.log(chalk.yellow('Reply truncated (max tokens reached).'));
+    } else if (reason === 'consecutive_denials') {
+      console.log(chalk.yellow('Reply stopped because you denied tool calls.'));
+    } else if (reason === 'max_tool_calls') {
+      console.log(chalk.yellow('Reply stopped because it reached the tool call limit.'));
+    } else if (reason === 'user_stop') {
+      console.log(chalk.yellow('Reply stopped by user.'));
+    }
+  })
+  runtime.on('contextCompacted', (details) => {
+    const contextTokens = details.contextTokens
+    const limit = details.limit
+    const pct = (contextTokens / limit) * 100
+    console.log(
+      chalk.yellow(
+        `Context compacted: now ${contextTokens} / ${limit} tokens (${pct.toFixed(1)}%).`
+      )
+    )
+  })
 
   const sessionCtx: SessionContext = {
     runtime,
@@ -138,9 +159,7 @@ async function main() {
 
     const input = line.trim()
 
-    printUserMessageEnd()
     if (!input) {
-      printUserMessageStart()
       rl.prompt()
       return
     }
@@ -149,6 +168,7 @@ async function main() {
     const handled = await tryExecuteCommand(input, sessionCtx)
     if (handled) return
 
+    printUserMessageEnd()
     sessionCtx.isProcessing = true
     try {
       printAssistantReplyStart()
@@ -160,12 +180,12 @@ async function main() {
       const turnTokens = result.totalUsage.input + result.totalUsage.output
       sessionCtx.sessionTotalTokens += turnTokens
 
-      if (result.terminationReason === 'consecutive_denials') {
-        console.log(chalk.yellow('Reply stopped because you denied tool calls.'));
-      } else if (result.terminationReason === 'max_tool_calls') {
-        console.log(chalk.yellow('Reply stopped because it reached the tool call limit.'));
-      }
-      printStatus(sessionCtx.sessionTotalTokens, provider.getModelMaxTokens(), provider.getModelName())
+      printStatus(
+        runtime.getContextTokens(),
+        provider.getModelMaxTokens(),
+        runtime.getLastApiUsage(),
+        provider.getModelName()
+      )
       printAssistantReplyEnd()
     } catch (error: any) {
       console.error('System Error:', error.message)

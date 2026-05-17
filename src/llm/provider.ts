@@ -5,6 +5,7 @@ import { AnthropicProvider } from './anthropic.js'
 import { OpenAIProvider } from './openai.js'
 import type { BaseProvider, ChatCallbacks } from './base.js'
 import type { ThinkingConfig } from '../utils/config.js'
+import { TokenCounter } from '../utils/token-counter.js'
 
 export interface LLMProviderOptions {
   provider?: 'anthropic' | 'openai';
@@ -43,6 +44,10 @@ export class LLMProvider implements BaseProvider {
     callbacks?: ChatCallbacks,
   ): Promise<LLMResponse> {
     return this.inner.chat(messages, tools, callbacks)
+  }
+
+  createTokenCounter(): TokenCounter {
+    return new TokenCounter(this.inner.getModelName())
   }
 
   getModelMaxTokens(): number {

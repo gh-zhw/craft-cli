@@ -53,6 +53,7 @@ You can also create or modify these files manually at any time.
 | `/reset` | Reset the conversation context |
 | `/auto` | Enable automatic approval for the current session |
 | `/ask` | Restore interactive approval |
+| `/compact` | Compact context |
 | `/remember <text>` | Save a memory for future sessions |
 | `/task <description>` | Execute a complex task using Plan → Execute → Reflect → Revise methodology |
 
@@ -72,7 +73,14 @@ Edit ```.craft/config.json``` to set a default model, toggle auto‑approval glo
   "autoApproveSafeCommands": true,
   "outputStyle": "stream",
   "maxConsecutiveDenials": 3,
-  "maxToolCallsPerTurn": 15
+  "maxToolCallsPerTurn": 15,
+  "contextCompression": {
+    "enabled": true,
+    "lightTrimThreshold": 0.8,
+    "deepCompactThreshold": 0.9,
+    "keepRecentTurns": 5,
+    "summaryMaxTokens": 1500
+  }
 }
 ```
 
