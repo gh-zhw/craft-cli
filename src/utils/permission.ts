@@ -58,6 +58,7 @@ export function getPermissionLevel(
     case 'grep':
     case 'glob':
     case 'web_search':
+    case 'get_current_time':
       return 'auto'
 
     case 'write_file':

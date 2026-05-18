@@ -8,6 +8,7 @@ import type { ThinkingConfig } from '../utils/config.js'
 export class OpenAIProvider implements BaseProvider {
   private client: OpenAI
   private model: string
+  private baseUrl: string
   private thinkingConfig?: Record<string, unknown>
 
   constructor(options: {
@@ -20,12 +21,13 @@ export class OpenAIProvider implements BaseProvider {
       throw new Error('OPENAI_API_KEY environment variable is required.')
     }
 
+    this.model = options.model ?? 'gpt-4o'
+    this.baseUrl = options.baseURL ?? 'https://api.openai.com/v1'
+
     this.client = new OpenAI({
-      baseURL: options.baseURL ?? 'https://api.openai.com/v1',
+      baseURL: this.baseUrl,
       apiKey,
     })
-
-    this.model = options.model ?? 'gpt-4o'
     
     if (options.thinking?.enabled) {
       const strength = options.thinking?.strength
@@ -171,6 +173,14 @@ export class OpenAIProvider implements BaseProvider {
 
   getModelName(): string {
     return this.model
+  }
+
+  getProviderName(): string {
+    return 'OpenAI'
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl
   }
 }
 

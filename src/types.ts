@@ -67,12 +67,15 @@ export interface LLMResponse {
 
 // ---------- Session Information ----------
 export interface SessionInfoProps {
+  provider: string;
+  baseurl: string;
   model: string;
-  tokensUsed: number;
+  inputTokensUsed: number;
+  outputTokensUsed: number;
+  currentContext: number;
   contextLimit: number;
   workspace: string;
   toolsCount: number;
-  hasMemories: boolean;
   autoApprove: boolean;
   messagesCount: number;
 }
@@ -86,8 +89,9 @@ export interface SessionContext {
   messages: Message[];
   /** Base system prompt (used when resetting) */
   systemPrompt: string;
-  /** Session token counter (will be mutated) */
-  sessionTotalTokens: number;
+  /** Session token counter */
+  sessionTotalInputTokens: number;
+  sessionTotalOutputTokens: number;
   /** The tool context (including config) – its config.autoApprove may be changed */
   toolContext: ToolContext;
   /** Original user config (for restoring autoApprove) */

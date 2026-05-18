@@ -7,6 +7,7 @@ import type { ThinkingConfig } from '../utils/config.js'
 export class AnthropicProvider implements BaseProvider {
   private client: Anthropic
   private model: string
+  private baseUrl: string
   private thinkingConfig: Anthropic.ThinkingConfigParam
 
   constructor(options: {
@@ -19,13 +20,14 @@ export class AnthropicProvider implements BaseProvider {
       throw new Error('ANTHROPIC_API_KEY environment variable is required.')
     }
 
+    this.model = options.model ?? 'claude-haiku-4-5'
+    this.baseUrl = options.baseURL ?? 'https://api.anthropic.com'
+
     this.client = new Anthropic({
-      baseURL: options.baseURL ?? 'https://api.anthropic.com',
+      baseURL: this.baseUrl,
       apiKey,
     })
 
-    this.model = options.model ?? 'claude-haiku-4-5'
-    
     if (options.thinking?.enabled) {
       const strength = options.thinking?.strength
       const budget = typeof strength === 'number' ? strength : 4000
@@ -186,5 +188,13 @@ export class AnthropicProvider implements BaseProvider {
 
   getModelName(): string {
     return this.model
+  }
+
+  getProviderName(): string {
+    return 'Anthropic'
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl
   }
 }

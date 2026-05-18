@@ -1,9 +1,8 @@
 // src/repl-commands.ts
 import type { SessionContext } from './types.js'
-import { addMemory, hasMemories } from './utils/memory.js'
+import { addMemory } from './utils/memory.js'
 import { printAssistantReplyEnd, printAssistantReplyStart, printSessionInfo } from './ui/chalk-ui.js'
 import { printAssistantHeader, printUserMessageStart } from './ui/chalk-ui.js'
-import { AgentRuntime } from './agent-runtime.js'
 import { buildTaskPrompt } from './utils/prompts.js'
 import { printStatus } from './ui/chalk-ui.js'
 import chalk from 'chalk'
@@ -63,7 +62,8 @@ registerCommand({
   execute: (_input, ctx) => {
     ctx.runtime.reset(ctx.systemPrompt)
     ctx.messages = ctx.runtime.getMessages()
-    ctx.sessionTotalTokens = 0
+    ctx.sessionTotalInputTokens = 0
+    ctx.sessionTotalOutputTokens = 0
     console.clear()
     printAssistantHeader('v1.0.0', ctx.workspaceRoot)
     printUserMessageStart()
@@ -111,16 +111,16 @@ registerCommand({
   name: '/info',
   description: 'Display session information',
   execute: (_input, ctx) => {
-    const providerModel = ctx.provider.getModelName()
-    const maxTokens = ctx.provider.getModelMaxTokens()
-    const memAvail = hasMemories(ctx.workspaceRoot)
     printSessionInfo({
-      model: providerModel,
-      tokensUsed: ctx.sessionTotalTokens,
-      contextLimit: maxTokens,
+      provider: ctx.provider.getProviderName(),
+      baseurl: ctx.provider.getBaseUrl(),
+      model: ctx.provider.getModelName(),
+      inputTokensUsed: ctx.sessionTotalInputTokens,
+      outputTokensUsed: ctx.sessionTotalOutputTokens,
+      currentContext: ctx.runtime.getContextTokens(),
+      contextLimit: ctx.provider.getModelMaxTokens(),
       workspace: ctx.workspaceRoot,
       toolsCount: ctx.registry.size,
-      hasMemories: memAvail,
       autoApprove: ctx.toolContext.config.autoApprove ?? false,
       messagesCount: ctx.messages.length,
     })
@@ -151,7 +151,8 @@ registerCommand({
       // Sync messages back to the context
       ctx.messages = ctx.runtime.getMessages()
       const turnTokens = result.totalUsage.input + result.totalUsage.output
-      ctx.sessionTotalTokens += turnTokens
+      ctx.sessionTotalInputTokens += result.totalUsage.input
+      ctx.sessionTotalOutputTokens += result.totalUsage.output
 
       if (result.terminationReason === 'consecutive_denials') {
         console.log(chalk.yellow('Task stopped because you denied tool calls.'))

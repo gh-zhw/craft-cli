@@ -270,22 +270,41 @@ export function printStatus(
  * Display a formatted session information panel.
  */
 export function printSessionInfo(props: SessionInfoProps) {
-  const lines: string[] = []
-  const percent = ((props.tokensUsed / props.contextLimit) * 100).toFixed(1)
-  lines.push(chalk.bold.blue('Session Info'))
-  lines.push(chalk.dim('─────────────────────────'))
-  lines.push(`Model        : ${chalk.cyan(props.model)}`)
-  lines.push(`Workspace    : ${chalk.gray(props.workspace)}`)
-  lines.push(`Tokens       : ${props.tokensUsed} / ${props.contextLimit} (${percent}%)`)
-  lines.push(`Messages     : ${props.messagesCount}`)
-  lines.push(`Tools loaded : ${props.toolsCount}`)
-  lines.push(`Memories     : ${props.hasMemories ? chalk.green('present') : chalk.gray('none')}`)
-  lines.push(
-    `Auto approve : ${props.autoApprove ? chalk.yellow('ON') : chalk.gray('off')}`
-  )
+  const contextPct = (props.currentContext / props.contextLimit) * 100
+  const contextPctFixed = contextPct.toFixed(1)
+
+  const barLength = 20
+  const filled = Math.round((contextPct / 100) * barLength)
+  const progressBar = '█'.repeat(filled) + '░'.repeat(barLength - filled)
+
+  let contextColor = chalk.green
+  if (contextPct >= 90) contextColor = chalk.red
+  else if (contextPct >= 70) contextColor = chalk.yellow
+
+  const autoApproveStatus = props.autoApprove
+    ? chalk.bold.green('ON')
+    : chalk.gray('off')
+
+  const maxLabelLen = 13  // "Tokens Usage".length
+  const padLabel = (label: string) => label.padEnd(maxLabelLen)
+
+  const lines = [
+    `${padLabel('Provider')} : ${chalk.cyan(props.provider)}`,
+    `${padLabel('BaseUrl')} : ${chalk.dim(props.baseurl)}`,
+    `${padLabel('Model')} : ${chalk.yellow(props.model)}`,
+    `${padLabel('Workspace')} : ${chalk.magenta(props.workspace)}`,
+    `${padLabel('Context')} : ${chalk.white(props.currentContext)} / ${chalk.white(props.contextLimit)} ${contextColor(`(${contextPctFixed}%)`)} ${chalk.gray(progressBar)}`,
+    `${padLabel('Tokens Usage')} : ↑${chalk.red(props.inputTokensUsed)} / ↓${chalk.green(props.outputTokensUsed)} ${`(total ${props.inputTokensUsed + props.outputTokensUsed})`}`,
+    `${padLabel('Messages')} : ${props.messagesCount}`,
+    `${padLabel('Tools loaded')} : ${props.toolsCount}`,
+    `${padLabel('Auto approve')} : ${autoApproveStatus}`,
+  ]
+
   console.log(boxen(lines.join('\n'), {
     padding: 1,
     borderColor: 'cyan',
     borderStyle: 'round',
+    title: 'Session Info',
+    titleAlignment: 'center',
   }))
 }

@@ -13,6 +13,8 @@ export interface BaseProvider {
     callbacks?: ChatCallbacks,
   ): Promise<LLMResponse>;
 
+  getProviderName(): string;
+  getBaseUrl(): string;
   getModelMaxTokens(): number;
   getModelName(): string;
 }

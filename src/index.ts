@@ -11,6 +11,7 @@ import { globTool } from './tools/glob.js'
 import { addMemoryTool } from './tools/add-memory.js'
 import { webSearchTool } from './tools/web-search.js'
 import { webFetchTool } from './tools/web-fetch.js'
+import { getCurrentTimeTool } from './tools/get-current-time.js'
 import { AgentRuntime } from './agent-runtime.js'
 import type { ToolContext, SessionContext } from './types.js'
 import {
@@ -78,6 +79,7 @@ async function main() {
   registerTool(registry, addMemoryTool)
   registerTool(registry, webSearchTool)
   registerTool(registry, webFetchTool)
+  registerTool(registry, getCurrentTimeTool)
   
   const sessionApprovedTools = new Set<string>()    // Session tool whitelist
 
@@ -137,7 +139,8 @@ async function main() {
     runtime,
     messages: runtime.getMessages(),
     systemPrompt,
-    sessionTotalTokens: 0,
+    sessionTotalInputTokens: 0,
+    sessionTotalOutputTokens: 0,
     toolContext: context,
     sessionApprovedTools,
     userConfig,
@@ -177,8 +180,8 @@ async function main() {
       // Update messages with the result
       sessionCtx.messages = result.updatedMessages
       // Update cumulative token counter
-      const turnTokens = result.totalUsage.input + result.totalUsage.output
-      sessionCtx.sessionTotalTokens += turnTokens
+      sessionCtx.sessionTotalInputTokens += result.totalUsage.input
+      sessionCtx.sessionTotalOutputTokens += result.totalUsage.output
 
       printStatus(
         runtime.getContextTokens(),

@@ -57,4 +57,12 @@ export class LLMProvider implements BaseProvider {
   getModelName(): string {
     return this.inner.getModelName()
   }
+
+  getProviderName(): string {
+    return this.inner.getProviderName()
+  }
+
+  getBaseUrl(): string {
+    return this.inner.getBaseUrl()
+  }
 }
