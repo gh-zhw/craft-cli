@@ -2,6 +2,8 @@
 import type {
   Message, ToolCall, LLMResponse,
   AgentRuntimeOptions, AgentRunResult, AgentEvents, ApprovalAction,
+  RuntimeConfig,
+  ApprovalRequest,
 } from './types.js'
 import type { LLMProvider } from './llm/provider.js'
 import type { ToolRegistry } from './tools/registry.js'
@@ -10,6 +12,14 @@ import { getPermissionLevel, getApprovalMessage } from './utils/permission.js'
 import { EventEmitter } from './utils/event-emitter.js'
 import { TokenCounter } from './utils/token-counter.js'
 import { ContextCompressionConfig } from './utils/config.js'
+
+export interface SubAgentOptions {
+  name: string;
+  task: string;
+  tools?: string[];
+  maxToolCalls?: number;
+  maxTimeSeconds?: number;
+}
 
 export class AgentRuntime {
   private provider: LLMProvider
@@ -31,10 +41,11 @@ export class AgentRuntime {
 
   private events = new EventEmitter<AgentEvents>()
 
+  private agentName?: string
+
   constructor(options: AgentRuntimeOptions) {
     this.provider = options.provider
     this.registry = options.registry
-    this.toolContext = options.toolContext
     this.config = options.config
     this.messages = [
       { role: 'system', content: options.systemPrompt },
@@ -42,6 +53,26 @@ export class AgentRuntime {
     ]
     this.compressionConfig = options.config.contextCompression
     this.tokenCounter = this.provider.createTokenCounter()
+
+    this.agentName = options.agentName
+
+    // Inject yourself into the original toolContext
+    options.toolContext.agentRuntime = this
+    // If agentName is specified, package the request for approval.
+    if (options.agentName) {
+      const originalAskApproval = options.toolContext.askApproval.bind(options.toolContext);
+      this.toolContext = {
+        ...options.toolContext,
+        askApproval: async (request: ApprovalRequest) => {
+          return originalAskApproval({
+            ...request,
+            agentName: options.agentName!,
+          })
+        },
+      }
+    } else {
+      this.toolContext = options.toolContext;
+    }
   }
 
   on<K extends keyof AgentEvents>(event: K, listener: AgentEvents[K]) {
@@ -59,6 +90,10 @@ export class AgentRuntime {
   }
   getLastApiUsage() {
     return this.lastApiUsage
+  }
+
+  getAgentName() {
+    return this.agentName
   }
 
   async run(userMessage: string): Promise<AgentRunResult> {
@@ -86,6 +121,7 @@ export class AgentRuntime {
       const response: LLMResponse = await this.provider.chat(
         this.messages,
         toolSchemas,
+        this.config.maxTokens,
         callbacks,
       )
 
@@ -128,7 +164,7 @@ export class AgentRuntime {
         contentBlocks: response.contentBlocks,
       })
 
-      this.contextTokens = await this.tokenCounter.countMessages(this.messages);
+      this.contextTokens = await this.tokenCounter.countMessages(this.messages)
 
       return {
         finalText: response.text,
@@ -144,12 +180,20 @@ export class AgentRuntime {
     this.messages = [
       { role: 'system', content: systemPrompt },
       ...initialMessages,
-    ];
-    this.totalInput = 0;
-    this.totalOutput = 0;
-    this.consecutiveDenials = 0;
-    this.totalToolCalls = 0;
-    this.sessionApprovedTools.clear();
+    ]
+    this.totalInput = 0
+    this.totalOutput = 0
+    this.consecutiveDenials = 0
+    this.totalToolCalls = 0
+    this.sessionApprovedTools.clear()
+  }
+
+  /**
+   * Manually add token usage (e.g., from sub-agents) to the current run's counter.
+   */
+  addTokenUsage(usage: { input: number; output: number }) {
+    this.totalInput += usage.input;
+    this.totalOutput += usage.output;
   }
 
   private async executeToolCalls(
@@ -256,6 +300,37 @@ export class AgentRuntime {
     return null
   }
 
+  /**
+   * Create a sub-agent runtime with limited tools and context.
+   */
+  static createSubRuntime(
+    mainRuntime: AgentRuntime,
+    options: SubAgentOptions,
+    allowedTools?: ToolRegistry,
+  ): AgentRuntime {
+    const systemPrompt = `You are a sub-agent named "${options.name}". 
+Your only job is to execute the given task and return a final report.
+You have access to a limited set of tools. Do not ask for clarification; just do your best.
+Respond with the final answer in a clear, concise format.
+Do not use any tools that are not explicitly provided.`
+
+    // Sub-Agent Configuration: Stricter Restrictions
+    const subConfig: RuntimeConfig = {
+      ...mainRuntime.config,
+      maxToolCallsPerTurn: options.maxToolCalls ?? mainRuntime.config.maxToolCallsPerTurn,
+    }
+
+    return new AgentRuntime({
+      provider: mainRuntime.provider,
+      registry: allowedTools ?? mainRuntime.registry,  // filtered imported registry
+      toolContext: mainRuntime.toolContext,  // Reuse workspaceRoot and others
+      systemPrompt,
+      config: subConfig,
+      initialMessages: [],
+      agentName: options.name,
+    })
+  }
+
   private async maybeCompactContext(force: boolean = false) {
     const limit = this.provider.getModelMaxTokens()
     this.contextTokens = await this.tokenCounter.countMessages(this.messages)
@@ -323,9 +398,10 @@ export class AgentRuntime {
     }
 
     try {
+      const max_tokens = this.compressionConfig.summaryMaxTokens
       const summary = await this.provider.chat([
         { role: 'user', content: `Please summarize the following conversation into a concise paragraph, retaining key facts, decisions, and context:\n\n${transcript}` }
-      ], [], { onText: undefined })  // No tool or callback required
+      ], [], max_tokens, { onText: undefined })  // No tool or callback required
       const summaryText = summary.text
 
       // Rebuild messages

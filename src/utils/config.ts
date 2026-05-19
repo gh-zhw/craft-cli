@@ -20,36 +20,50 @@ export interface ContextCompressionConfig {
   summaryMaxTokens: number;
 }
 
+export interface subagentConfig {
+  defaultMaxTimeSeconds: number;
+  defaultMaxToolCalls: number;
+  verbose: boolean;
+}
+
 export interface UserConfig {
   provider: 'anthropic' | 'openai';
   baseUrl: string;
   model: string;
+  maxTokens: number;
   thinking: ThinkingConfig;
   autoApprove: boolean;
   autoApproveSafeCommands: boolean;
   outputStyle: 'stream' | 'markdown';
   maxConsecutiveDenials: number;
   maxToolCallsPerTurn: number;
-  contextCompression: ContextCompressionConfig
+  contextCompression: ContextCompressionConfig;
+  subagents: subagentConfig;
 }
 
 const DEFAULT_CONFIG: UserConfig = {
   provider: 'anthropic',
   baseUrl: 'https://api.deepseek.com/anthropic',
   model: 'deepseek-v4-flash',
+  maxTokens: 10_000,
   thinking: { enabled: false },
   autoApprove: false,
   autoApproveSafeCommands: true,
   outputStyle: 'stream',
   maxConsecutiveDenials: 3,
-  maxToolCallsPerTurn: 15,
+  maxToolCallsPerTurn: 30,
   contextCompression: {
     enabled: true,
     lightTrimThreshold: 0.80,
     deepCompactThreshold: 0.90,
     keepRecentTurns: 5,
-    summaryMaxTokens: 1500,
+    summaryMaxTokens: 2_000,
   },
+  subagents: {
+    defaultMaxTimeSeconds: 60,
+    defaultMaxToolCalls: 15,
+    verbose: false,
+  }
 }
 
 export const CRAFT_DIR = '.craft'

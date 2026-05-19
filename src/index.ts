@@ -12,15 +12,13 @@ import { addMemoryTool } from './tools/add-memory.js'
 import { webSearchTool } from './tools/web-search.js'
 import { webFetchTool } from './tools/web-fetch.js'
 import { getCurrentTimeTool } from './tools/get-current-time.js'
+import { taskSubagentTool } from './tools/task-subagent.js'
 import { AgentRuntime } from './agent-runtime.js'
 import type { ToolContext, SessionContext } from './types.js'
 import {
   printAssistantHeader,
-  printStatus,
   printUserMessageStart,
   printUserMessageEnd,
-  printAssistantReplyStart,
-  printAssistantReplyEnd,
   printStreamingText,
   printToolCallStart,
   printToolCallEnd,
@@ -32,6 +30,7 @@ import { loadMemories } from './utils/memory.js'
 import { tryExecuteCommand } from './repl-commands.js'
 import chalk from 'chalk'
 import { buildSystemPrompt } from './utils/prompts.js'
+import { executeAgentTurn } from './execute-turn.js'
 
 
 const workspaceRoot = process.cwd()
@@ -48,6 +47,7 @@ for (let i = 0; i < args.length; i++) {
     i++
   }
 }
+
 
 async function main() {
   console.clear()
@@ -80,6 +80,7 @@ async function main() {
   registerTool(registry, webSearchTool)
   registerTool(registry, webFetchTool)
   registerTool(registry, getCurrentTimeTool)
+  registerTool(registry, taskSubagentTool)
   
   const sessionApprovedTools = new Set<string>()    // Session tool whitelist
 
@@ -96,6 +97,7 @@ async function main() {
     workspaceRoot,
     askApproval: createAskApproval(rl),
     config: { ...userConfig, autoApprove: userConfig.autoApprove },
+    agentRuntime: undefined,
   }
 
   // Create AgentRuntime (persistent instance)
@@ -106,6 +108,7 @@ async function main() {
     systemPrompt,
     config: userConfig,
     initialMessages: [],
+    agentName: 'main'
   })
 
   // Register UI event
@@ -172,32 +175,7 @@ async function main() {
     if (handled) return
 
     printUserMessageEnd()
-    sessionCtx.isProcessing = true
-    try {
-      printAssistantReplyStart()
-  
-      const result = await runtime.run(input)
-      // Update messages with the result
-      sessionCtx.messages = result.updatedMessages
-      // Update cumulative token counter
-      sessionCtx.sessionTotalInputTokens += result.totalUsage.input
-      sessionCtx.sessionTotalOutputTokens += result.totalUsage.output
-
-      printStatus(
-        runtime.getContextTokens(),
-        provider.getModelMaxTokens(),
-        runtime.getLastApiUsage(),
-        provider.getModelName()
-      )
-      printAssistantReplyEnd()
-    } catch (error: any) {
-      console.error('System Error:', error.message)
-      printAssistantReplyEnd()
-    }
-
-    sessionCtx.isProcessing = false
-    printUserMessageStart()
-    rl.prompt()
+    await executeAgentTurn(input, sessionCtx)
   })
 
   rl.on('close', () => {

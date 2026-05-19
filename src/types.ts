@@ -1,6 +1,6 @@
 // src/types.ts
 import { z } from 'zod'
-import type { ContextCompressionConfig, UserConfig } from './utils/config.js'
+import type { UserConfig } from './utils/config.js'
 import type { PermissionLevel } from './utils/permission.js'
 import { LLMProvider } from './llm/provider.js';
 import { ToolRegistry } from './tools/registry.js';
@@ -15,6 +15,7 @@ export interface ApprovalRequest {
   args: Record<string, any>;
   message: string;      // Prompt text corresponding to the level
   level: PermissionLevel;
+  agentName?: string;
 }
 
 // ---------- Tool Protocol ----------
@@ -25,6 +26,7 @@ export interface ToolContext {
   workspaceRoot: string;
   askApproval: (request: ApprovalRequest) => Promise<ApprovalAction>;
   config: UserConfig;
+  agentRuntime?: AgentRuntime;  // For taskSubagentTool
 }
 
 /**
@@ -123,6 +125,7 @@ export interface AgentRuntimeOptions {
   systemPrompt: string;
   config: RuntimeConfig;
   initialMessages?: Message[];  // Existing historical messages (excluding system messages)
+  agentName?: string;
 }
 
 export interface AgentRunResult {

@@ -40,6 +40,7 @@ export class AnthropicProvider implements BaseProvider {
   async chat(
     messages: Message[],
     tools: Anthropic.Tool[],
+    max_tokens?: number,
     callbacks?: ChatCallbacks,
   ): Promise<LLMResponse> {
     const systemMessage = messages.find((m) => m.role === 'system')
@@ -47,7 +48,7 @@ export class AnthropicProvider implements BaseProvider {
 
     const stream = this.client.messages.stream({
       model: this.model,
-      max_tokens: 4096,
+      max_tokens: max_tokens ?? 4096,
       system: systemMessage?.content,
       messages: chatMessages,
       tools: tools.length > 0 ? tools : undefined,

@@ -19,7 +19,7 @@ export function formatToolDisplay(toolName: string, args: Record<string, any>): 
       let preview = ''
       previewLines.forEach((line, idx) => {
         const lineNo = idx + 1
-        preview += chalk.dim(`${lineNo}: `) + chalk.dim(line) + '\n'
+        preview += chalk.dim(`${lineNo}  `) + chalk.dim(line) + '\n'
       })
       if (lines.length > previewLines.length) {
         preview += chalk.dim(`... (${lines.length - previewLines.length} more lines)`)
@@ -95,6 +95,13 @@ export function formatToolDisplay(toolName: string, args: Record<string, any>): 
     case 'add_memory': {
       const content = args.content as string
       return `Remember: "${chalk.italic(content.slice(0, 80))}"`
+    }
+
+    case 'task_subagent': {
+      const name = args.name as string;
+      const task = args.task as string;
+      const taskPreview = task.length > 100 ? task.slice(0, 100) + '...' : task;
+      return `Sub-agent: ${chalk.cyan(name)}\nTask: ${chalk.dim(taskPreview)}`;
     }
 
     default:

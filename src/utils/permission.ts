@@ -65,6 +65,7 @@ export function getPermissionLevel(
     case 'edit_file':
     case 'add_memory':
     case 'web_fetch':
+    case 'task_subagent':
       return 'confirm'
 
     case 'run_shell': {

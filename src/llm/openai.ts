@@ -41,6 +41,7 @@ export class OpenAIProvider implements BaseProvider {
   async chat(
     messages: Message[],
     tools: Anthropic.Tool[],
+    max_tokens?: number,
     callbacks?: ChatCallbacks,
   ): Promise<LLMResponse> {
     const systemMessage = messages.find((m) => m.role === 'system')
@@ -52,7 +53,7 @@ export class OpenAIProvider implements BaseProvider {
 
     const stream = await this.client.chat.completions.create({
       model: this.model,
-      max_tokens: 4096,
+      max_tokens: max_tokens ?? 4096,
       messages: [
         ...(systemMessage
           ? [{ role: 'system' as const, content: systemMessage.content }]

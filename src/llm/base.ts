@@ -10,6 +10,7 @@ export interface BaseProvider {
   chat(
     messages: Message[],
     tools: Anthropic.Tool[],
+    max_tokens?: number,
     callbacks?: ChatCallbacks,
   ): Promise<LLMResponse>;
 

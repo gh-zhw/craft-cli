@@ -1,11 +1,11 @@
 // src/repl-commands.ts
 import type { SessionContext } from './types.js'
 import { addMemory } from './utils/memory.js'
-import { printAssistantReplyEnd, printAssistantReplyStart, printSessionInfo } from './ui/chalk-ui.js'
+import { printSessionInfo, printUserMessageEnd } from './ui/chalk-ui.js'
 import { printAssistantHeader, printUserMessageStart } from './ui/chalk-ui.js'
 import { buildTaskPrompt } from './utils/prompts.js'
-import { printStatus } from './ui/chalk-ui.js'
 import chalk from 'chalk'
+import { executeAgentTurn } from './execute-turn.js'
 
 
 export interface ReplCommand {
@@ -140,41 +140,9 @@ registerCommand({
       return
     }
 
-    const wrapped = buildTaskPrompt(taskDesc)
-
-    // Prevent user input during execution
-    ctx.isProcessing = true
-    try {
-      printAssistantReplyStart()
-      const result = await ctx.runtime.run(wrapped)
-
-      // Sync messages back to the context
-      ctx.messages = ctx.runtime.getMessages()
-      const turnTokens = result.totalUsage.input + result.totalUsage.output
-      ctx.sessionTotalInputTokens += result.totalUsage.input
-      ctx.sessionTotalOutputTokens += result.totalUsage.output
-
-      if (result.terminationReason === 'consecutive_denials') {
-        console.log(chalk.yellow('Task stopped because you denied tool calls.'))
-      } else if (result.terminationReason === 'max_tool_calls') {
-        console.log(chalk.yellow('Task stopped because it reached the tool call limit.'))
-      }
-
-      printStatus(
-        ctx.runtime.getContextTokens(),
-        ctx.provider.getModelMaxTokens(),
-        ctx.runtime.getLastApiUsage(),
-        ctx.provider.getModelName()
-      )
-      printAssistantReplyEnd()
-    } catch (error: any) {
-      console.error('System Error:', error.message)
-      printAssistantReplyEnd()
-    } finally {
-      ctx.isProcessing = false
-      printUserMessageStart()
-      ctx.rl.prompt()
-    }
+    const wrappedInput = buildTaskPrompt(taskDesc)
+    printUserMessageEnd()
+    await executeAgentTurn(wrappedInput, ctx)
   },
 })
 

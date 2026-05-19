@@ -14,8 +14,12 @@ const APPROVAL_TIMEOUT_MS = 30_000
  */
 function buildApprovalPanel(request: ApprovalRequest): string {
   const title = request.level === 'warn'
-    ? chalk.red('Dangerous Operation')
-    : chalk.yellow('Approval Required')
+    ? 'Dangerous Operation'
+    : 'Approval Required'
+  
+  const agentLabel = request.agentName
+    ? ` ${chalk.magenta(request.agentName)}`
+    : '-'
 
   const toolInfo = formatToolDisplay(request.toolName, request.args)
   const options = [
@@ -26,11 +30,13 @@ function buildApprovalPanel(request: ApprovalRequest): string {
   ].join('')
 
   return boxen(
-    `${title}\n\n${toolInfo}\n\n${options}`,
+    `Agent: ${agentLabel}\n${toolInfo}\n\n${options}`,
     {
-      padding: 1,
+      padding: 0.5,
       borderColor: request.level === 'warn' ? 'red' : 'yellow',
       borderStyle: 'round',
+      title: title,
+      titleAlignment: 'center',
     }
   )
 }
@@ -50,7 +56,7 @@ export function createAskApproval(rl: readline.Interface): (request: ApprovalReq
       const timeout = setTimeout(() => {
         if (settled) return
         settled = true
-        console.log(chalk.yellow('\nApproval timed out – automatically denying.'))
+        console.log(chalk.yellow('Approval timed out – automatically denying.'))
         resolve('deny')
       }, APPROVAL_TIMEOUT_MS)
 

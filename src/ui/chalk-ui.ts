@@ -196,7 +196,8 @@ export function printAssistantHeader(version: string, workspaceRoot?: string) {
  */
 export function printToolCallStart(name: string, args: Record<string, any>) {
   const toolDesc = formatToolDisplay(name, args)
-  startSpinner(chalk.yellow(toolDesc))
+  const shortDesc = toolDesc.split(/\r?\n/)[0]
+  startSpinner(chalk.yellow(shortDesc))
 }
 
 /**
@@ -207,8 +208,8 @@ export function printToolCallStart(name: string, args: Record<string, any>) {
  * @param error - Whether the tool execution failed (default false).
  */
 export function printToolCallEnd(name: string, result: string, error?: boolean) {
-  const firstLine = result.split(/\r?\n/)[0]
-  const toolDesc = `Tool ${name}: ${firstLine}`
+  const shortRes = result.split(/\r?\n/)[0]
+  const toolDesc = `Tool ${name}: ${shortRes}`
 
   if (spinner) {
     if (error) {
@@ -273,13 +274,13 @@ export function printSessionInfo(props: SessionInfoProps) {
   const contextPct = (props.currentContext / props.contextLimit) * 100
   const contextPctFixed = contextPct.toFixed(1)
 
-  const barLength = 20
-  const filled = Math.round((contextPct / 100) * barLength)
-  const progressBar = '█'.repeat(filled) + '░'.repeat(barLength - filled)
-
   let contextColor = chalk.green
   if (contextPct >= 90) contextColor = chalk.red
   else if (contextPct >= 70) contextColor = chalk.yellow
+
+  const barLength = 20
+  const filled = Math.round((contextPct / 100) * barLength)
+  const progressBar = contextColor('█').repeat(filled) + '░'.repeat(barLength - filled)
 
   const autoApproveStatus = props.autoApprove
     ? chalk.bold.green('ON')
@@ -293,7 +294,7 @@ export function printSessionInfo(props: SessionInfoProps) {
     `${padLabel('BaseUrl')} : ${chalk.dim(props.baseurl)}`,
     `${padLabel('Model')} : ${chalk.yellow(props.model)}`,
     `${padLabel('Workspace')} : ${chalk.magenta(props.workspace)}`,
-    `${padLabel('Context')} : ${chalk.white(props.currentContext)} / ${chalk.white(props.contextLimit)} ${contextColor(`(${contextPctFixed}%)`)} ${chalk.gray(progressBar)}`,
+    `${padLabel('Context')} : ${chalk.white(props.currentContext)} / ${chalk.white(props.contextLimit)} ${contextColor(`(${contextPctFixed}%)`)} ${progressBar}`,
     `${padLabel('Tokens Usage')} : ↑${chalk.red(props.inputTokensUsed)} / ↓${chalk.green(props.outputTokensUsed)} ${`(total ${props.inputTokensUsed + props.outputTokensUsed})`}`,
     `${padLabel('Messages')} : ${props.messagesCount}`,
     `${padLabel('Tools loaded')} : ${props.toolsCount}`,

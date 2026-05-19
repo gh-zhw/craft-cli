@@ -41,9 +41,10 @@ export class LLMProvider implements BaseProvider {
   async chat(
     messages: Message[],
     tools: Anthropic.Tool[],
+    max_tokens?: number,
     callbacks?: ChatCallbacks,
   ): Promise<LLMResponse> {
-    return this.inner.chat(messages, tools, callbacks)
+    return this.inner.chat(messages, tools, max_tokens, callbacks)
   }
 
   createTokenCounter(): TokenCounter {
