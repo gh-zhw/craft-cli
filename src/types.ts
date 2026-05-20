@@ -126,6 +126,7 @@ export interface AgentRuntimeOptions {
   config: RuntimeConfig;
   initialMessages?: Message[];  // Existing historical messages (excluding system messages)
   agentName?: string;
+  isSubAgent?: boolean;
 }
 
 export interface AgentRunResult {

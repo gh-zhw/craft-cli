@@ -3,7 +3,7 @@ import type {
   Message, ToolCall, LLMResponse,
   AgentRuntimeOptions, AgentRunResult, AgentEvents, ApprovalAction,
   RuntimeConfig,
-  ApprovalRequest,
+  ToolContext,
 } from './types.js'
 import type { LLMProvider } from './llm/provider.js'
 import type { ToolRegistry } from './tools/registry.js'
@@ -27,7 +27,7 @@ export class AgentRuntime {
   private compressionConfig: ContextCompressionConfig
 
   private registry: ToolRegistry
-  private toolContext: any
+  private toolContext: ToolContext
   private totalToolCalls = 0
   private consecutiveDenials = 0
   private sessionApprovedTools = new Set<string>()
@@ -54,25 +54,12 @@ export class AgentRuntime {
     this.compressionConfig = options.config.contextCompression
     this.tokenCounter = this.provider.createTokenCounter()
 
-    this.agentName = options.agentName
-
-    // Inject yourself into the original toolContext
-    options.toolContext.agentRuntime = this
-    // If agentName is specified, package the request for approval.
-    if (options.agentName) {
-      const originalAskApproval = options.toolContext.askApproval.bind(options.toolContext);
-      this.toolContext = {
-        ...options.toolContext,
-        askApproval: async (request: ApprovalRequest) => {
-          return originalAskApproval({
-            ...request,
-            agentName: options.agentName!,
-          })
-        },
-      }
-    } else {
-      this.toolContext = options.toolContext;
+    // Inject this into the original toolContext (only if not a sub-agent)
+    if (!options.isSubAgent) {
+      options.toolContext.agentRuntime = this
     }
+    this.toolContext = options.toolContext
+    this.agentName = options.agentName
   }
 
   on<K extends keyof AgentEvents>(event: K, listener: AgentEvents[K]) {
@@ -192,8 +179,8 @@ export class AgentRuntime {
    * Manually add token usage (e.g., from sub-agents) to the current run's counter.
    */
   addTokenUsage(usage: { input: number; output: number }) {
-    this.totalInput += usage.input;
-    this.totalOutput += usage.output;
+    this.totalInput += usage.input
+    this.totalOutput += usage.output
   }
 
   private async executeToolCalls(
@@ -241,6 +228,7 @@ export class AgentRuntime {
           args: tc.arguments,
           message: approvalMessage,
           level,
+          agentName: this.agentName,
         })
 
         switch (action) {
@@ -328,6 +316,7 @@ Do not use any tools that are not explicitly provided.`
       config: subConfig,
       initialMessages: [],
       agentName: options.name,
+      isSubAgent: true,
     })
   }
 

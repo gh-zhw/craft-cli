@@ -63,17 +63,17 @@ export function formatToolDisplay(toolName: string, args: Record<string, any>): 
 
     case 'run_shell': {
       const command = args.command as string
-      return `Run: ${chalk.yellow(command)}`
+      return `Shell ${chalk.yellow(command)}`
     }
 
     case 'web_fetch': {
       const url = args.url as string
-      return `Fetch: ${chalk.blue(url)}`
+      return `Fetch ${chalk.blue(url)}`
     }
 
     case 'web_search': {
       const query = args.query as string
-      return `Search: "${chalk.bold(query)}"`
+      return `Search "${chalk.bold(query)}"`
     }
 
     case 'read_file': {
@@ -94,14 +94,14 @@ export function formatToolDisplay(toolName: string, args: Record<string, any>): 
 
     case 'add_memory': {
       const content = args.content as string
-      return `Remember: "${chalk.italic(content.slice(0, 80))}"`
+      return `Remember "${chalk.italic(content.slice(0, 80))}"`
     }
 
     case 'task_subagent': {
       const name = args.name as string;
       const task = args.task as string;
       const taskPreview = task.length > 100 ? task.slice(0, 100) + '...' : task;
-      return `Sub-agent: ${chalk.cyan(name)}\nTask: ${chalk.dim(taskPreview)}`;
+      return `Sub-agent ${chalk.cyan(name)}\nTask: ${chalk.dim(taskPreview)}`;
     }
 
     default:

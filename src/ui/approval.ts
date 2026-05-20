@@ -18,7 +18,7 @@ function buildApprovalPanel(request: ApprovalRequest): string {
     : 'Approval Required'
   
   const agentLabel = request.agentName
-    ? ` ${chalk.magenta(request.agentName)}`
+    ? `${chalk.magenta(request.agentName)}`
     : '-'
 
   const toolInfo = formatToolDisplay(request.toolName, request.args)
@@ -30,7 +30,7 @@ function buildApprovalPanel(request: ApprovalRequest): string {
   ].join('')
 
   return boxen(
-    `Agent: ${agentLabel}\n${toolInfo}\n\n${options}`,
+    `Caller: ${agentLabel}\nInfo: ${toolInfo}\n\n${options}`,
     {
       padding: 0.5,
       borderColor: request.level === 'warn' ? 'red' : 'yellow',
