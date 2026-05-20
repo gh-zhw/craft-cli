@@ -168,7 +168,7 @@ export function printAssistantHeader(version: string, workspaceRoot?: string) {
     chalk.cyan('/exit') + chalk.dim(' quit · ') +
     chalk.cyan('/reset') + chalk.dim(' reset · ') +
     chalk.cyan('/info') + chalk.dim(' status\n') +
-    chalk.cyan('/auto') + chalk.dim('/') + chalk.cyan('ask') + chalk.dim(' toggle approval mode · ') +
+    chalk.cyan('/auto') + chalk.dim(' toggle approval mode · ') +
     chalk.cyan('/remember') + chalk.dim(' save memory\n') +
     chalk.cyan('/task') + chalk.dim(' structured task · ') +
     chalk.cyan('/compact') + chalk.dim(' compact context')

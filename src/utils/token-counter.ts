@@ -48,9 +48,6 @@ export class TokenCounter {
   async countMessages(messages: Message[]): Promise<number> {
     let total = 0
     for (const msg of messages) {
-      // Add some fixed costs (such as anthropic effects, roughly estimated) based on the role.
-      total += 3
-      if (msg.role === 'system') total += 1
       // Mainly calculates content text
       total += await this.countText(msg.content)
       // If there are tool calls, calculate the parameter text as well.

@@ -89,20 +89,15 @@ registerCommand({
 
 registerCommand({
   name: '/auto',
-  description: 'Enable auto‑approve mode for this session',
+  description: 'Toggle auto‑approve mode for this session',
   execute: (_input, ctx) => {
-    ctx.toolContext.config.autoApprove = true
-    console.log(chalk.green('✓ Auto-approve mode ON'))
-    ctx.rl.prompt()
-  },
-})
-
-registerCommand({
-  name: '/ask',
-  description: 'Restore interactive approval mode',
-  execute: (_input, ctx) => {
-    ctx.toolContext.config.autoApprove = ctx.userConfig.autoApprove ?? false
-    console.log(chalk.yellow('✓ Interactive approval mode restored'))
+    const current = ctx.toolContext.config.autoApprove
+    ctx.toolContext.config.autoApprove = !current
+    if (ctx.toolContext.config.autoApprove) {
+      console.log(chalk.green('Auto-approve mode ON'))
+    } else {
+      console.log(chalk.yellow('Auto-approve mode OFF'))
+    }
     ctx.rl.prompt()
   },
 })

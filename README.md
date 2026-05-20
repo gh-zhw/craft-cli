@@ -40,7 +40,7 @@ You can also create or modify these files manually at any time.
 ## Features
 - Interactive REPL with streaming Markdown output
 
-- Six built-in tools: read/write/edit files, shell execution, grep, and glob
+- Eleven built-in tools: read/write/edit files, shell execution, grep, glob, add memory, search/fetch website, get current time, create a subagent.
 
 - Smart permission system (auto / confirm / warn)
 
@@ -51,8 +51,8 @@ You can also create or modify these files manually at any time.
 |---------|-------------|
 | `/exit` | Quit the REPL |
 | `/reset` | Reset the conversation context |
-| `/auto` | Enable automatic approval for the current session |
-| `/ask` | Restore interactive approval |
+| `/info` | Display session information (e.g., current model name, token usage) |
+| `/auto` | Toggle auto‑approve mode for this session |
 | `/compact` | Compact context |
 | `/remember <text>` | Save a memory for future sessions |
 | `/task <description>` | Execute a complex task using Plan → Execute → Reflect → Revise methodology |
@@ -80,6 +80,11 @@ Edit ```.craft/config.json``` to set a default model, toggle auto‑approval glo
     "deepCompactThreshold": 0.9,
     "keepRecentTurns": 5,
     "summaryMaxTokens": 1500
+  },
+  "subagents": {
+    "defaultMaxTimeSeconds": 60,
+    "defaultMaxToolCalls": 15,
+    "verbose": false
   }
 }
 ```
