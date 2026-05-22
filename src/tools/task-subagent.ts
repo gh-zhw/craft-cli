@@ -25,7 +25,6 @@ const ALL_TOOLS: Record<string, Tool> = {
 const paramsSchema = z.object({
   name: z.string().describe("A short name for this sub-agent (e.g., 'bug-finder')."),
   task: z.string().describe("Clear, detailed instructions for the sub-agent, including expected output format."),
-  max_time_seconds: z.number().optional().describe("Time limit (default 60s)."),
   tools: z.array(z.enum(['read_file', 'grep', 'glob', 'web_search', 'web_fetch', 'run_shell', 'get_current_time'])).optional().describe("Allowed tools (default all read-only)."),
 })
 
@@ -38,9 +37,10 @@ export const taskSubagentTool: Tool<z.input<typeof paramsSchema>> = {
     const {
       name,
       task,
-      max_time_seconds = 60,
       tools: allowedToolNames = ['read_file', 'grep', 'glob', 'web_search', 'web_fetch', 'get_current_time'],
     } = args
+    const max_time_seconds = ctx.config?.subagents.maxTimeSeconds
+    const max_tool_calls = ctx.config?.subagents.maxToolCalls
 
     if (ctx.config?.subagents?.verbose) {
       console.log(`Sub-agent '${name}' started on task: ${task} (tools: ${allowedToolNames.join(', ')})`)
@@ -67,7 +67,7 @@ export const taskSubagentTool: Tool<z.input<typeof paramsSchema>> = {
         name,
         task,
         maxTimeSeconds: max_time_seconds,
-        maxToolCalls: 10,
+        maxToolCalls: max_tool_calls,
       },
       subRegistry,
     )

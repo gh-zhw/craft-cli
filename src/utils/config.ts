@@ -21,8 +21,8 @@ export interface ContextCompressionConfig {
 }
 
 export interface subagentConfig {
-  defaultMaxTimeSeconds: number;
-  defaultMaxToolCalls: number;
+  maxTimeSeconds: number;
+  maxToolCalls: number;
   verbose: boolean;
 }
 
@@ -51,7 +51,7 @@ const DEFAULT_CONFIG: UserConfig = {
   autoApproveSafeCommands: true,
   outputStyle: 'stream',
   maxConsecutiveDenials: 3,
-  maxToolCallsPerTurn: 30,
+  maxToolCallsPerTurn: 50,
   contextCompression: {
     enabled: true,
     lightTrimThreshold: 0.80,
@@ -60,8 +60,8 @@ const DEFAULT_CONFIG: UserConfig = {
     summaryMaxTokens: 2_000,
   },
   subagents: {
-    defaultMaxTimeSeconds: 60,
-    defaultMaxToolCalls: 15,
+    maxTimeSeconds: 120,
+    maxToolCalls: 30,
     verbose: false,
   }
 }

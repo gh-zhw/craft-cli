@@ -30,7 +30,7 @@ export async function executeAgentTurn(
     printStatus(
       ctx.runtime.getContextTokens(),
       ctx.provider.getModelMaxTokens(),
-      ctx.runtime.getLastApiUsage(),
+      ctx.runtime.getLastTurnUsage(),
       ctx.provider.getModelName(),
     )
     printAssistantReplyEnd()

@@ -58,7 +58,7 @@ You can also create or modify these files manually at any time.
 | `/task <description>` | Execute a complex task using Plan → Execute → Reflect → Revise methodology |
 
 ## Configuration
-Edit ```.craft/config.json``` to set a default model, toggle auto‑approval globally, and more.
+Edit ```.craft/config.json``` to set a default model, toggle auto‑approval globally, and more. (ps. subagents.defaultMaxTimeSeconds is not supported for now)
 
 ```json
 {

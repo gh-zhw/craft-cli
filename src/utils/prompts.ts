@@ -56,7 +56,7 @@ export function buildSystemPrompt(workspaceRoot: string, memories?: string): str
 export function buildTaskPrompt(taskDescription: string): string {
   return `I need you to work on the following complex task using the **Plan → Execute → Reflect → Revise** methodology.
 
-During this task, you may output your plan, progress, and reflections in full, even if you normally keep responses concise.
+During this task, you may output your plan, progress, and reflections in full, even if you normally keep responses concise. Please response in the language used in the task description.
 
 ## Instructions
 1. **Plan**: Think through the task and output a clear, numbered step-by-step plan in Markdown. For each step, identify which tools you will need. Also note any dependencies between steps (e.g., Step 3 requires the output of Step 2). If a dependency later fails, you will need to adjust the plan.
@@ -71,4 +71,3 @@ During this task, you may output your plan, progress, and reflections in full, e
 ## Task
 ${taskDescription}`
 }
-

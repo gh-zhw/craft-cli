@@ -8,7 +8,7 @@ import { AgentRuntime } from './agent-runtime.js';
 
 
 // ---------- Approval Types ----------
-export type ApprovalAction = 'approve' | 'deny' | 'approve_all' | 'stop';
+export type ApprovalAction = 'approve' | 'deny' | 'always' | 'stop';
 
 export interface ApprovalRequest {
   toolName: string;

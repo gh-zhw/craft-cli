@@ -35,7 +35,7 @@ export class AgentRuntime {
   private messages: Message[]
   private tokenCounter: TokenCounter
   private contextTokens = 0
-  private lastApiUsage = { input: 0, output: 0 }
+  private lastTurnUsage = { input: 0, output: 0 }
   private totalInput = 0
   private totalOutput = 0
 
@@ -75,8 +75,8 @@ export class AgentRuntime {
   getContextTokens() {
     return this.contextTokens
   }
-  getLastApiUsage() {
-    return this.lastApiUsage
+  getLastTurnUsage() {
+    return this.lastTurnUsage
   }
 
   getAgentName() {
@@ -84,12 +84,13 @@ export class AgentRuntime {
   }
 
   async run(userMessage: string): Promise<AgentRunResult> {
-    // Add user message
-    this.messages.push({ role: 'user', content: userMessage })
-
     // Reset per-run counters
+    this.lastTurnUsage = { input: 0, output: 0 }
     this.consecutiveDenials = 0
     this.totalToolCalls = 0
+
+    // Add user message
+    this.messages.push({ role: 'user', content: userMessage })
 
     const toolSchemas = getToolSchemas(this.registry)
 
@@ -111,14 +112,11 @@ export class AgentRuntime {
         this.config.maxTokens,
         callbacks,
       )
-
       if (response.text) {
         this.events.emit('streamFinished')
       }
 
-      this.lastApiUsage = { input: response.usage.input, output: response.usage.output }
-      this.totalInput += response.usage.input
-      this.totalOutput += response.usage.output
+      this.addTokenUsage(response.usage)
 
       if (response.stopReason === 'tool_use') {
         this.messages.push({
@@ -131,10 +129,49 @@ export class AgentRuntime {
         const terminationResult = await this.executeToolCalls(response.toolCalls)
         if (terminationResult) {
           this.events.emit('terminated', terminationResult.reason)
+
+          // For max_tool_calls or consecutive_denials, let the model provide the final answer based on existing information.
+          if (
+            terminationResult.reason === 'max_tool_calls' ||
+            terminationResult.reason === 'consecutive_denials'
+          ) {
+            // Add a prompt message asking the model to summarize
+            this.messages.push({
+              role: 'user',
+              content: terminationResult.message +
+                'Since this round of task has reached the maximum tool call limit, the task are paused. Please summarize previous messages WITHOUT calling any tools.',
+            })
+
+            // Run a tool-free call to generate a summary from the model
+            const finalResponse = await this.provider.chat(
+              this.messages,
+              [],
+              this.config.maxTokens,
+              callbacks,
+            )
+            if (response.text) {
+              this.events.emit('streamFinished')
+            }
+
+            this.addTokenUsage(response.usage)
+
+            this.messages.push({
+              role: 'assistant',
+              content: finalResponse.text,
+              contentBlocks: finalResponse.contentBlocks,
+            })
+
+            return {
+              finalText: finalResponse.text,
+              updatedMessages: this.messages,
+              totalUsage: this.lastTurnUsage,
+              terminationReason: terminationResult.reason,
+            }
+          }
           return {
             finalText: terminationResult.message,
             updatedMessages: this.messages,
-            totalUsage: { input: this.totalInput, output: this.totalOutput },
+            totalUsage: this.lastTurnUsage,
             terminationReason: terminationResult.reason,
           }
         }
@@ -170,6 +207,8 @@ export class AgentRuntime {
     ]
     this.totalInput = 0
     this.totalOutput = 0
+    this.lastTurnUsage = { input: 0, output: 0 }
+    this.contextTokens = 0
     this.consecutiveDenials = 0
     this.totalToolCalls = 0
     this.sessionApprovedTools.clear()
@@ -179,6 +218,10 @@ export class AgentRuntime {
    * Manually add token usage (e.g., from sub-agents) to the current run's counter.
    */
   addTokenUsage(usage: { input: number; output: number }) {
+    // Cumulative consumption for this round
+    this.lastTurnUsage.input += usage.input
+    this.lastTurnUsage.output += usage.output
+
     this.totalInput += usage.input
     this.totalOutput += usage.output
   }
@@ -186,17 +229,31 @@ export class AgentRuntime {
   private async executeToolCalls(
     toolCalls: ToolCall[],
   ): Promise<{ message: string; reason: AgentRunResult['terminationReason'] } | null> {
+    let shouldStop = false
+    let terminationReason: AgentRunResult['terminationReason']
+    let terminationMessage: string
+
     for (const tc of toolCalls) {
-      if (this.config.maxToolCallsPerTurn > 0 && this.totalToolCalls >= this.config.maxToolCallsPerTurn) {
+      // If termination has been triggered, generate cancellation results only for remaining calls and proceed.
+      if (shouldStop) {
         this.messages.push({
           role: 'tool',
           content: 'Error: Task terminated before this tool could execute.',
           tool_call_id: tc.id,
         })
-        return {
-          message: 'Task terminated: maximum number of tool calls reached.',
-          reason: 'max_tool_calls',
-        }
+        continue
+      }
+
+      if (this.config.maxToolCallsPerTurn > 0 && this.totalToolCalls >= this.config.maxToolCallsPerTurn) {
+        shouldStop = true
+        terminationReason = 'max_tool_calls'
+        terminationMessage = 'Task terminated: maximum number of tool calls reached.'
+        this.messages.push({
+          role: 'tool',
+          content: 'Error: Task terminated before this tool could execute.',
+          tool_call_id: tc.id,
+        })
+        continue
       }
       this.totalToolCalls++
 
@@ -232,7 +289,7 @@ export class AgentRuntime {
         })
 
         switch (action) {
-          case 'approve_all':
+          case 'always':
             this.sessionApprovedTools.add(tc.name)
             break
           case 'approve':
@@ -246,10 +303,9 @@ export class AgentRuntime {
             })
             shouldExecute = false
             if (this.config.maxConsecutiveDenials > 0 && this.consecutiveDenials >= this.config.maxConsecutiveDenials) {
-              return {
-                message: 'Task terminated: too many consecutive tool call denials.',
-                reason: 'consecutive_denials',
-              }
+              shouldStop = true
+              terminationReason = 'consecutive_denials'
+              terminationMessage = 'Task terminated: too many consecutive tool call denials.'
             }
             break
           case 'stop':
@@ -258,10 +314,11 @@ export class AgentRuntime {
               content: 'Error: Task stopped by user.',
               tool_call_id: tc.id,
             })
-            return {
-              message: 'Task stopped by user.',
-              reason: 'user_stop',
-            }
+            shouldStop = true
+            terminationReason = 'user_stop'
+            terminationMessage = 'Task stopped by user.'
+            shouldExecute = false
+            break
         }
       }
 
@@ -284,6 +341,10 @@ export class AgentRuntime {
           })
         }
       }
+    }
+
+    if (shouldStop) {
+      return { message: terminationMessage!, reason: terminationReason! }
     }
     return null
   }

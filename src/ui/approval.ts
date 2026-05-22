@@ -69,14 +69,14 @@ export function createAskApproval(rl: readline.Interface): (request: ApprovalReq
         const actionMap: Record<string, ApprovalAction> = {
           y: 'approve',
           n: 'deny',
-          a: 'approve_all',
+          a: 'always',
           s: 'stop',
         }
         const action = actionMap[char] || 'deny'  // Default
 
         resolve(action)
 
-        if (action === 'approve' || action === 'approve_all') {
+        if (action === 'approve' || action === 'always') {
           resumeSpinner()
         } else {
           stopSpinner(chalk.red(' User denied'), { type: 'fail' })

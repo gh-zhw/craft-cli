@@ -163,23 +163,24 @@ const logo = `
 ╚██████╗██║  ██║██║  ██║██║        ██║
  ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝`
 export function printAssistantHeader(version: string, workspaceRoot?: string) {
-  const text = chalk.hex('#ee2a2a')(logo)
+  const text = chalk.hex('#3171df')(logo)
   const commandsTips =
-    chalk.cyan('/exit') + chalk.dim(' quit · ') +
-    chalk.cyan('/reset') + chalk.dim(' reset · ') +
-    chalk.cyan('/info') + chalk.dim(' status\n') +
-    chalk.cyan('/auto') + chalk.dim(' toggle approval mode · ') +
-    chalk.cyan('/remember') + chalk.dim(' save memory\n') +
-    chalk.cyan('/task') + chalk.dim(' structured task · ') +
-    chalk.cyan('/compact') + chalk.dim(' compact context')
+    chalk.cyan('/exit') + chalk.gray(' quit · ') +
+    chalk.cyan('/reset') + chalk.gray(' reset · ') +
+    chalk.cyan('/info') + chalk.gray(' status · ') +
+    chalk.cyan('/auto') + chalk.gray(' toggle approval mode\n') +
+    chalk.cyan('/compact') + chalk.gray(' compact context · ') +
+    chalk.cyan('/remember') + chalk.gray(' save memory · ') +
+    chalk.cyan('/task') + chalk.gray(' structured task')
+
   let content = text + '\n\n' + commandsTips
   if (workspaceRoot && workspaceRoot?.length > 0) {
-    content += '\n\n' + chalk.gray(`Workspace: ${workspaceRoot}`)
+    content += '\n\n' + `Workspace: ${workspaceRoot}`
   }
 
   console.log(boxen(content, {
     textAlignment: 'center',
-    borderColor: '#ee2a2a',
+    borderColor: '#3171df',
     borderStyle: 'bold',
     title: version,
     titleAlignment: 'left',
