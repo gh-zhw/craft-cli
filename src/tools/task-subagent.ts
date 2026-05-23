@@ -7,7 +7,6 @@ import { grepTool } from './grep.js'
 import { globTool } from './glob.js'
 import { webSearchTool } from './web-search.js'
 import { webFetchTool } from './web-fetch.js'
-import { runShellTool } from './run-shell.js'
 import { getCurrentTimeTool } from './get-current-time.js'
 import type { Tool, ToolContext } from '../types.js'
 
@@ -18,84 +17,131 @@ const ALL_TOOLS: Record<string, Tool> = {
   glob: globTool,
   web_search: webSearchTool,
   web_fetch: webFetchTool,
-  run_shell: runShellTool,
   get_current_time: getCurrentTimeTool,
 }
+const TOOL_NAMES = Object.keys(ALL_TOOLS) as [string, ...string[]]
+
+const subagentSchema = z.object({
+  name: z.string().describe("Unique short name for this sub-agent."),
+  task: z.string().describe("Detailed instructions, including expected output format."),
+  tools: z.array(z.enum(TOOL_NAMES)).optional().describe("Allowed tools (default: all read-only tools)."),
+})
 
 const paramsSchema = z.object({
-  name: z.string().describe("A short name for this sub-agent (e.g., 'bug-finder')."),
-  task: z.string().describe("Clear, detailed instructions for the sub-agent, including expected output format."),
-  tools: z.array(z.enum(['read_file', 'grep', 'glob', 'web_search', 'web_fetch', 'run_shell', 'get_current_time'])).optional().describe("Allowed tools (default all read-only)."),
+  subagents: z.array(subagentSchema).min(1).describe("List of sub-agents to run in parallel."),
 })
 
 export const taskSubagentTool: Tool<z.input<typeof paramsSchema>> = {
   name: 'task_subagent',
   description:
-    'Create a sub-agent to work on a specific sub-task. The sub-agent has read-only access to files, web search, and optionally shell. It returns a final report. Use this to parallelize work or isolate complex sub-problems.',
+    `Run multiple **read-only** sub-agents in parallel, each with a specific sub-task. Sub-agents can read files, search code, browse the web, and check the current time. They cannot modify files, execute shell commands, or change the workspace in any way. Each sub-agent returns a text report, which is summarized for you. Use this to parallelize independent research, analysis, or code exploration tasks.`,
   parameters: paramsSchema,
   async execute(args, ctx: ToolContext) {
-    const {
-      name,
-      task,
-      tools: allowedToolNames = ['read_file', 'grep', 'glob', 'web_search', 'web_fetch', 'get_current_time'],
-    } = args
-    const max_time_seconds = ctx.config?.subagents.maxTimeSeconds
-    const max_tool_calls = ctx.config?.subagents.maxToolCalls
+    const { subagents } = args
 
-    if (ctx.config?.subagents?.verbose) {
-      console.log(`Sub-agent '${name}' started on task: ${task} (tools: ${allowedToolNames.join(', ')})`)
+    const maxParallel = ctx.config?.subagents?.maxParallel ?? 5
+    if (subagents.length > maxParallel) {
+      return `Error: Too many sub-agents. Maximum allowed is ${maxParallel}.`
     }
 
-    // Build filtered tool registry
-    const subRegistry = createToolRegistry()
-    for (const toolName of allowedToolNames) {
-      if (ALL_TOOLS[toolName]) {
-        registerTool(subRegistry, ALL_TOOLS[toolName])
+    // 1. Validate uniqueness of names
+    const names = subagents.map((s) => s.name)
+    if (new Set(names).size !== names.length) {
+      return 'Error: Sub-agent names must be unique.'
+    }
+
+    // 2. Get main AgentRuntime
+    const mainRuntime = (ctx as any).agentRuntime as AgentRuntime
+    if (!mainRuntime) {
+      return 'Error: Sub-agents can only be created when running inside the main agent.'
+    }
+
+    // 3. Create sub-runtimes for each sub-agent
+    const subRuntimes: { name: string; runtime: AgentRuntime; task: string; timeout: number }[] = []
+    for (const sub of subagents) {
+      const allowedToolNames = sub.tools ?? TOOL_NAMES
+      const subRegistry = createToolRegistry()
+      for (const toolName of allowedToolNames) {
+        if (ALL_TOOLS[toolName]) {
+          registerTool(subRegistry, ALL_TOOLS[toolName])
+        }
       }
+
+      const subRuntime = AgentRuntime.createSubRuntime(
+        mainRuntime,
+        {
+          name: sub.name,
+          task: sub.task,
+          maxToolCalls: ctx.config?.subagents?.maxToolCalls ?? 8,
+        },
+        subRegistry,
+      )
+
+      const perAgentTimeoutSec = ctx.config?.subagents?.maxTimeSeconds ?? 120
+      const perAgentTimeoutMs = perAgentTimeoutSec * 1000
+
+      subRuntimes.push({
+        name: sub.name,
+        runtime: subRuntime,
+        task: sub.task,
+        timeout: perAgentTimeoutMs,
+      })
     }
 
-    // Get the main AgentRuntime from context
-    const mainRuntime = ctx.agentRuntime as AgentRuntime
-    if (!mainRuntime || mainRuntime.getAgentName() != 'main') {
-      return 'Error: Sub-agent can only be created when running inside the main agent.'
-    }
-
-    // 3. Create sub-runtime
-    const subRuntime = AgentRuntime.createSubRuntime(
-      mainRuntime,
-      {
-        name,
-        task,
-        maxTimeSeconds: max_time_seconds,
-        maxToolCalls: max_tool_calls,
-      },
-      subRegistry,
+    // 4. Execute all in parallel with individual timeouts
+    const startTime = Date.now()
+    const results = await Promise.allSettled(
+      subRuntimes.map(({ runtime, task, timeout }) =>
+        Promise.race([
+          runtime.run(task),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Sub-agent timed out')), timeout)
+          ),
+        ])
+      )
     )
 
-    // 4. Execute with timeout
-    const startTime = Date.now()
-    try {
-      const result = await Promise.race([
-        subRuntime.run(task),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Sub-agent '${name}' timed out after ${max_time_seconds}s`)), max_time_seconds * 1000)
-        ),
-      ])
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
 
-      if (mainRuntime) {
-        mainRuntime.addTokenUsage(result.totalUsage)
+    // 5. Process results and format report
+    const reportLines: string[] = [`## Sub-agents Report (completed in ${elapsed}s)\n`]
+    let allSuccess = true
+
+    for (let i = 0; i < subagents.length; i++) {
+      const sub = subagents[i]
+      const result = results[i]
+      let statusLine = `- **${sub.name}**`
+
+      if (result.status === 'fulfilled') {
+        const res = result.value
+        if (res.finalText && res.terminationReason) {
+          // Success
+          const outputPreview = res.finalText.length > 200
+            ? res.finalText.slice(0, 200) + '...'
+            : res.finalText
+          statusLine += ` Success — ${outputPreview}`
+          // Accumulate token usage
+          if (mainRuntime) {
+            mainRuntime.addTokenUsage(res.totalUsage)
+          }
+        } else {
+          // Error or empty
+          statusLine += ` Error — ${res.finalText || 'Unknown error'}`
+          allSuccess = false
+        }
+      } else {
+        statusLine += ` Error — Timed out or failed: ${result.reason}`
+        allSuccess = false
       }
-
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-      const status = result.terminationReason
-        ? ` (terminated: ${result.terminationReason})`
-        : ''
-
-      return `Sub-agent '${name}' completed in ${elapsed}s${status}\n` +
-        `Tools used: ${result.totalUsage.input + result.totalUsage.output} tokens\n\n` +
-        result.finalText
-    } catch (error: any) {
-      return `Sub-agent '${name}' failed: ${error.message}`
+      reportLines.push(statusLine)
     }
+
+    if (results.every((r) => r.status === 'rejected')) {
+      reportLines.push('\nAll sub-agents failed or timed out. No results could be obtained.')
+    } else if (!allSuccess) {
+      reportLines.push('\nSome sub-agents failed – review individual statuses above.')
+    }
+
+    return reportLines.join('\n')
   },
 }

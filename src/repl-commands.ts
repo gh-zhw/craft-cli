@@ -62,6 +62,7 @@ registerCommand({
   execute: (_input, ctx) => {
     ctx.runtime.reset(ctx.systemPrompt)
     ctx.messages = ctx.runtime.getMessages()
+    ctx.sessionApprovedTools.clear()
     ctx.sessionTotalInputTokens = 0
     ctx.sessionTotalOutputTokens = 0
     console.clear()

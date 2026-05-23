@@ -98,10 +98,16 @@ export function formatToolDisplay(toolName: string, args: Record<string, any>): 
     }
 
     case 'task_subagent': {
-      const name = args.name as string;
-      const task = args.task as string;
-      const taskPreview = task.length > 100 ? task.slice(0, 100) + '...' : task;
-      return `Sub-agent ${chalk.cyan(name)}\nTask: ${chalk.dim(taskPreview)}`;
+      const subs = args.subagents as Array<{ name: string; task: string }>;
+      if (!subs || subs.length === 0) {
+        return 'Sub-agents: (none)';
+      }
+      const count = subs.length;
+      const previews = subs.map(s => {
+        const shortTask = s.task.length > 80 ? s.task.slice(0, 80) + '…' : s.task;
+        return `  ${chalk.cyan(s.name)}: ${chalk.dim(shortTask)}`;
+      }).join('\n');
+      return `Sub-agents (${count})\n${previews}`;
     }
 
     default:

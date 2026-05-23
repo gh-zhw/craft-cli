@@ -16,9 +16,7 @@ import { ContextCompressionConfig } from './utils/config.js'
 export interface SubAgentOptions {
   name: string;
   task: string;
-  tools?: string[];
   maxToolCalls?: number;
-  maxTimeSeconds?: number;
 }
 
 export class AgentRuntime {
@@ -30,7 +28,7 @@ export class AgentRuntime {
   private toolContext: ToolContext
   private totalToolCalls = 0
   private consecutiveDenials = 0
-  private sessionApprovedTools = new Set<string>()
+  private sharedApprovedTools: Set<string>
 
   private messages: Message[]
   private tokenCounter: TokenCounter
@@ -51,6 +49,7 @@ export class AgentRuntime {
       { role: 'system', content: options.systemPrompt },
       ...(options.initialMessages ?? []),
     ]
+    this.sharedApprovedTools = options.sessionApprovedTools ?? new Set<string>()
     this.compressionConfig = options.config.contextCompression
     this.tokenCounter = this.provider.createTokenCounter()
 
@@ -211,7 +210,6 @@ export class AgentRuntime {
     this.contextTokens = 0
     this.consecutiveDenials = 0
     this.totalToolCalls = 0
-    this.sessionApprovedTools.clear()
   }
 
   /**
@@ -273,7 +271,7 @@ export class AgentRuntime {
       const isAutoApproved =
         level === 'auto' ||
         this.toolContext.config.autoApprove ||
-        this.sessionApprovedTools.has(tc.name)
+        this.sharedApprovedTools.has(tc.name)
 
       // Fire toolStart event (UI spinner)
       this.events.emit('toolStart', tc.name, tc.arguments)
@@ -290,7 +288,7 @@ export class AgentRuntime {
 
         switch (action) {
           case 'always':
-            this.sessionApprovedTools.add(tc.name)
+            this.sharedApprovedTools.add(tc.name)
             break
           case 'approve':
             break
@@ -359,25 +357,33 @@ export class AgentRuntime {
   ): AgentRuntime {
     const systemPrompt = `You are a sub-agent named "${options.name}". 
 Your only job is to execute the given task and return a final report.
-You have access to a limited set of tools. Do not ask for clarification; just do your best.
+You have access to some **read-only**  tools. Do not ask for clarification; just do your best.
 Respond with the final answer in a clear, concise format.
 Do not use any tools that are not explicitly provided.`
 
-    // Sub-Agent Configuration: Stricter Restrictions
     const subConfig: RuntimeConfig = {
       ...mainRuntime.config,
       maxToolCallsPerTurn: options.maxToolCalls ?? mainRuntime.config.maxToolCallsPerTurn,
     }
 
+    const subToolContext = {
+      ...mainRuntime.toolContext,
+      config: {
+        ...mainRuntime.toolContext.config,
+        autoApprove: true,     // Read-only subagents
+      },
+    }
+
     return new AgentRuntime({
       provider: mainRuntime.provider,
-      registry: allowedTools ?? mainRuntime.registry,  // filtered imported registry
-      toolContext: mainRuntime.toolContext,  // Reuse workspaceRoot and others
+      registry: allowedTools ?? mainRuntime.registry,
+      toolContext: subToolContext,
       systemPrompt,
       config: subConfig,
       initialMessages: [],
       agentName: options.name,
       isSubAgent: true,
+      sessionApprovedTools: mainRuntime.sharedApprovedTools,
     })
   }
 

@@ -107,6 +107,7 @@ async function main() {
     toolContext: context,
     systemPrompt,
     config: userConfig,
+    sessionApprovedTools,
     initialMessages: [],
     agentName: 'main'
   })

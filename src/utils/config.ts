@@ -21,6 +21,7 @@ export interface ContextCompressionConfig {
 }
 
 export interface subagentConfig {
+  maxParallel: number;
   maxTimeSeconds: number;
   maxToolCalls: number;
   verbose: boolean;
@@ -60,6 +61,7 @@ const DEFAULT_CONFIG: UserConfig = {
     summaryMaxTokens: 2_000,
   },
   subagents: {
+    maxParallel: 5,
     maxTimeSeconds: 120,
     maxToolCalls: 30,
     verbose: false,

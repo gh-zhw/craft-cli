@@ -119,12 +119,13 @@ export interface RuntimeConfig extends UserConfig {
 }
 
 export interface AgentRuntimeOptions {
-  provider: any;                // LLMProvider
-  registry: any;                // ToolRegistry
+  provider: any;                        // LLMProvider
+  registry: any;                        // ToolRegistry
   toolContext: ToolContext;
   systemPrompt: string;
   config: RuntimeConfig;
-  initialMessages?: Message[];  // Existing historical messages (excluding system messages)
+  sessionApprovedTools?: Set<string>;   // Shared whitelist
+  initialMessages?: Message[];          // Existing historical messages (excluding system messages)
   agentName?: string;
   isSubAgent?: boolean;
 }
