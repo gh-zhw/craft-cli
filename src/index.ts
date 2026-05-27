@@ -36,14 +36,16 @@ import { executeAgentTurn } from './execute-turn.js'
 const workspaceRoot = process.cwd()
 
 const args = process.argv.slice(2)
-let cliProvider: string | undefined
-let cliModel: string | undefined
+let cliMode: 'chat' | 'agent' = 'agent'
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--provider' && args[i + 1]) {
-    cliProvider = args[i + 1]
-    i++
-  } else if (args[i] === '--model' && args[i + 1]) {
-    cliModel = args[i + 1]
+  if (args[i] === '--mode' && args[i + 1]) {
+    const val = args[i + 1]
+    if (val === 'chat' || val === 'agent') {
+      cliMode = val
+    } else {
+      console.error(`Invalid mode: ${val}. Expected "chat" or "agent".`)
+      process.exit(1)
+    }
     i++
   }
 }
@@ -62,29 +64,31 @@ async function main() {
 
   // Initialize LLM provider
   const provider = new LLMProvider({
-    provider: (cliProvider as any) ?? userConfig.provider ?? 'anthropic',
+    provider: userConfig.provider ?? 'anthropic',
     baseUrl: userConfig.baseUrl,
-    model: cliModel ?? userConfig.model,
+    model: userConfig.model,
     thinking: userConfig.thinking,
   })
 
-  // Set up tool registry
+  // Set up tool registry — agent mode only
   const registry = createToolRegistry()
-  registerTool(registry, readFileTool)
-  registerTool(registry, writeFileTool)
-  registerTool(registry, editFileTool)
-  registerTool(registry, runShellTool)
-  registerTool(registry, grepTool)
-  registerTool(registry, globTool)
-  registerTool(registry, addMemoryTool)
-  registerTool(registry, webSearchTool)
-  registerTool(registry, webFetchTool)
-  registerTool(registry, getCurrentTimeTool)
-  registerTool(registry, taskSubagentTool)
-  
+  if (cliMode === 'agent') {
+    registerTool(registry, readFileTool)
+    registerTool(registry, writeFileTool)
+    registerTool(registry, editFileTool)
+    registerTool(registry, runShellTool)
+    registerTool(registry, grepTool)
+    registerTool(registry, globTool)
+    registerTool(registry, addMemoryTool)
+    registerTool(registry, webSearchTool)
+    registerTool(registry, webFetchTool)
+    registerTool(registry, getCurrentTimeTool)
+    registerTool(registry, taskSubagentTool)
+  }
+
   const sessionApprovedTools = new Set<string>()    // Session tool whitelist
 
-  const systemPrompt = buildSystemPrompt(workspaceRoot, memories)
+  const systemPrompt = buildSystemPrompt(workspaceRoot, memories, cliMode)
 
   // Readline setup
   const rl = readline.createInterface({
@@ -153,6 +157,7 @@ async function main() {
     workspaceRoot,
     rl,
     isProcessing: false,
+    mode: cliMode,
   }
 
   printUserMessageStart()

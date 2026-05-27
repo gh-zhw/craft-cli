@@ -168,7 +168,8 @@ export function printAssistantHeader(version: string, workspaceRoot?: string) {
     chalk.cyan('/exit') + chalk.gray(' quit · ') +
     chalk.cyan('/reset') + chalk.gray(' reset · ') +
     chalk.cyan('/info') + chalk.gray(' status · ') +
-    chalk.cyan('/auto') + chalk.gray(' toggle approval mode\n') +
+    chalk.cyan('/mode') + chalk.gray(' chat/agent · ') +
+    chalk.cyan('/auto') + chalk.gray(' toggle approval\n') +
     chalk.cyan('/compact') + chalk.gray(' compact context · ') +
     chalk.cyan('/remember') + chalk.gray(' save memory · ') +
     chalk.cyan('/task') + chalk.gray(' structured task')
@@ -236,6 +237,7 @@ export function printStatus(
   contextLimit: number,
   apiUsage?: { input: number; output: number },
   model?: string,
+  mode?: 'chat' | 'agent',
 ) {
   const pct = (contextTokens / contextLimit) * 100
   const usedStr = `${contextTokens} (${(contextTokens / 1000).toFixed(1)}k)`
@@ -254,6 +256,11 @@ export function printStatus(
 
   let modelTokenText = ''
   let coloredModelTokenText = ''
+  if (mode) {
+    const modeTag = mode === 'agent' ? chalk.magenta('[agent]') : chalk.blue('[chat]')
+    modelTokenText += modeTag + ' '
+    coloredModelTokenText += modeTag + ' '
+  }
   if (model) {
     modelTokenText += model
     coloredModelTokenText += chalk.cyan(model)
@@ -287,14 +294,19 @@ export function printSessionInfo(props: SessionInfoProps) {
     ? chalk.bold.green('ON')
     : chalk.gray('off')
 
+  const modeStatus = props.mode === 'agent'
+    ? chalk.magenta('agent')
+    : chalk.blue('chat')
+
   const maxLabelLen = 13  // "Tokens Usage".length
   const padLabel = (label: string) => label.padEnd(maxLabelLen)
 
   const lines = [
     `${padLabel('Provider')} : ${chalk.cyan(props.provider)}`,
-    `${padLabel('BaseUrl')} : ${chalk.dim(props.baseurl)}`,
+    `${padLabel('BaseUrl')} : ${props.baseurl}`,
     `${padLabel('Model')} : ${chalk.yellow(props.model)}`,
-    `${padLabel('Workspace')} : ${chalk.magenta(props.workspace)}`,
+    `${padLabel('Mode')} : ${modeStatus}`,
+    `${padLabel('Workspace')} : ${props.workspace}`,
     `${padLabel('Context')} : ${chalk.white(props.currentContext)} / ${chalk.white(props.contextLimit)} ${contextColor(`(${contextPctFixed}%)`)} ${progressBar}`,
     `${padLabel('Tokens Usage')} : ↑${chalk.red(props.inputTokensUsed)} / ↓${chalk.green(props.outputTokensUsed)} ${`(total ${props.inputTokensUsed + props.outputTokensUsed})`}`,
     `${padLabel('Messages')} : ${props.messagesCount}`,

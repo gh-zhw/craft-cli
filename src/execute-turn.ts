@@ -32,6 +32,7 @@ export async function executeAgentTurn(
       ctx.provider.getModelMaxTokens(),
       ctx.runtime.getLastTurnUsage(),
       ctx.provider.getModelName(),
+      ctx.mode,
     )
     printAssistantReplyEnd()
   } catch (error: any) {

@@ -1,9 +1,22 @@
 // src/repl-commands.ts
 import type { SessionContext } from './types.js'
-import { addMemory } from './utils/memory.js'
+import { addMemory, loadMemories } from './utils/memory.js'
 import { printSessionInfo, printUserMessageEnd } from './ui/chalk-ui.js'
 import { printAssistantHeader, printUserMessageStart } from './ui/chalk-ui.js'
-import { buildTaskPrompt } from './utils/prompts.js'
+import { buildSystemPrompt, buildTaskPrompt } from './utils/prompts.js'
+import { loadConfig } from './utils/config.js'
+import { registerTool } from './tools/registry.js'
+import { readFileTool } from './tools/read-file.js'
+import { writeFileTool } from './tools/write-file.js'
+import { editFileTool } from './tools/edit-file.js'
+import { runShellTool } from './tools/run-shell.js'
+import { grepTool } from './tools/grep.js'
+import { globTool } from './tools/glob.js'
+import { addMemoryTool } from './tools/add-memory.js'
+import { webSearchTool } from './tools/web-search.js'
+import { webFetchTool } from './tools/web-fetch.js'
+import { getCurrentTimeTool } from './tools/get-current-time.js'
+import { taskSubagentTool } from './tools/task-subagent.js'
 import chalk from 'chalk'
 import { executeAgentTurn } from './execute-turn.js'
 
@@ -48,7 +61,7 @@ export async function tryExecuteCommand(input: string, ctx: SessionContext): Pro
   return false
 }
 
-// ── Built‑in commands ─────────────────────────────────────────────
+// Built‑in commands
 
 registerCommand({
   name: '/exit',
@@ -58,9 +71,21 @@ registerCommand({
 
 registerCommand({
   name: '/reset',
-  description: 'Clear conversation and reset session',
+  description: 'Reload config/prompt and reset session',
   execute: (_input, ctx) => {
+    // Hot reload config from disk
+    const freshConfig = loadConfig(ctx.workspaceRoot)
+    ctx.userConfig = freshConfig
+    ctx.toolContext.config = { ...freshConfig, autoApprove: freshConfig.autoApprove }
+
+    // Hot reload memories and rebuild system prompt
+    const memories = loadMemories(ctx.workspaceRoot)
+    ctx.systemPrompt = buildSystemPrompt(ctx.workspaceRoot, memories, ctx.mode)
+
+    // Push updated config to runtime and reset conversation
+    ctx.runtime.updateConfig(freshConfig)
     ctx.runtime.reset(ctx.systemPrompt)
+
     ctx.messages = ctx.runtime.getMessages()
     ctx.sessionApprovedTools.clear()
     ctx.sessionTotalInputTokens = 0
@@ -119,7 +144,57 @@ registerCommand({
       toolsCount: ctx.registry.size,
       autoApprove: ctx.toolContext.config.autoApprove ?? false,
       messagesCount: ctx.messages.length,
+      mode: ctx.mode,
     })
+    ctx.rl.prompt()
+  },
+})
+
+registerCommand({
+  name: '/mode ',
+  description: 'Switch between chat and agent mode',
+  execute: (input, ctx) => {
+    const modeArg = input.slice('/mode '.length).trim()
+    if (modeArg !== 'chat' && modeArg !== 'agent') {
+      console.log(chalk.yellow('Usage: /mode <chat|agent>'))
+      ctx.rl.prompt()
+      return
+    }
+
+    if (ctx.mode === modeArg) {
+      console.log(chalk.gray(`Already in ${modeArg} mode.`))
+      ctx.rl.prompt()
+      return
+    }
+
+    ctx.mode = modeArg
+
+    // Rebuild tool registry
+    ctx.registry.clear()
+    if (modeArg === 'agent') {
+      registerTool(ctx.registry, readFileTool)
+      registerTool(ctx.registry, writeFileTool)
+      registerTool(ctx.registry, editFileTool)
+      registerTool(ctx.registry, runShellTool)
+      registerTool(ctx.registry, grepTool)
+      registerTool(ctx.registry, globTool)
+      registerTool(ctx.registry, addMemoryTool)
+      registerTool(ctx.registry, webSearchTool)
+      registerTool(ctx.registry, webFetchTool)
+      registerTool(ctx.registry, getCurrentTimeTool)
+      registerTool(ctx.registry, taskSubagentTool)
+    }
+
+    // Rebuild system prompt and reset
+    const memories = loadMemories(ctx.workspaceRoot)
+    ctx.systemPrompt = buildSystemPrompt(ctx.workspaceRoot, memories, ctx.mode)
+    ctx.runtime.reset(ctx.systemPrompt)
+    ctx.messages = ctx.runtime.getMessages()
+    ctx.sessionApprovedTools.clear()
+    ctx.sessionTotalInputTokens = 0
+    ctx.sessionTotalOutputTokens = 0
+
+    console.log(chalk.green(`Switched to ${modeArg} mode.`))
     ctx.rl.prompt()
   },
 })

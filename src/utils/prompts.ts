@@ -3,6 +3,12 @@ import { existsSync, readFileSync, writeFileSync} from 'node:fs'
 import { join } from 'node:path'
 import { CRAFT_DIR } from './config.js'
 
+export const CHAT_SYSTEM_PROMPT = `You are **Craft**, a helpful terminal assistant. Answer the user's questions concisely and accurately.
+
+## Interaction Guidelines
+- **Match the user's language in conversation.** Always respond in the same language the user employed.
+- **Be concise, direct, and helpful.** Do not narrate your process unless asked.`
+
 export const DEFAULT_SYSTEM_PROMPT = `You are **Craft**, a precise and thoughtful terminal coding agent. Your purpose is to help the user complete their works efficiently and safely.
 
 ## Core Principles
@@ -23,10 +29,22 @@ export const DEFAULT_SYSTEM_PROMPT = `You are **Craft**, a precise and thoughtfu
 
 
 /**
- * Build a system prompt with memories
- * If AGENT.md does not exist, create and write the default system prompt.
+ * Build a system prompt with memories.
+ * In chat mode, uses a simple prompt (no AGENT.md lookup).
+ * In agent mode, reads AGENT.md (creating it from the default if missing).
  */
-export function buildSystemPrompt(workspaceRoot: string, memories?: string): string {
+export function buildSystemPrompt(
+  workspaceRoot: string,
+  memories?: string,
+  mode: 'chat' | 'agent' = 'agent',
+): string {
+  if (mode === 'chat') {
+    if (memories && memories.trim().length > 0) {
+      return `${CHAT_SYSTEM_PROMPT}\n\n## Memories\n${memories}`
+    }
+    return CHAT_SYSTEM_PROMPT
+  }
+
   const agentMdPath = join(workspaceRoot, CRAFT_DIR, 'AGENT.md')
   let sysPrompt: string
   if (existsSync(agentMdPath)) {
@@ -41,7 +59,6 @@ export function buildSystemPrompt(workspaceRoot: string, memories?: string): str
 - Current Time: ${new Date().toISOString()}
 `
 
-  // Prepend memories if present
   if (memories && memories.trim().length > 0) {
     return `## Agent Role\n${sysPrompt}\n\n## Memories\n${memories}\n\n## Current Environment\n${currentEnv}`
   }

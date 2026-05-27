@@ -24,8 +24,9 @@ OPENAI_API_KEY=your-api-key
 
 ### 3. Run Craft
 ```bash
-craft
+craft [--mode chat|agent]
 ```
+Defaults to `agent` mode with full tool access. Use `--mode chat` for a lightweight chat-only session with no tools.
 On first run, Craft will automatically create default configuration files in ```.craft/``` directory:
 
 - ```AGENT.md``` – the agent’s system prompt (edit to customise behaviour)
@@ -40,7 +41,7 @@ You can also create or modify these files manually at any time.
 ## Features
 - Interactive REPL with streaming Markdown output
 
-- Eleven built-in tools: read/write/edit files, shell execution, grep, glob, add memory, search/fetch website, get current time, create a subagent.
+- Eleven built-in tools: read/write/edit files, shell execution, grep, glob, add memory, search/fetch website, get current time, create parallel subagents.
 
 - Smart permission system (auto / confirm / warn)
 
@@ -50,8 +51,9 @@ You can also create or modify these files manually at any time.
 | Command | Description |
 |---------|-------------|
 | `/exit` | Quit the REPL |
-| `/reset` | Reset the conversation context |
+| `/reset` | Reload config/prompt and reset the conversation |
 | `/info` | Display session information (e.g., current model name, token usage) |
+| `/mode <chat\|agent>` | Switch between chat mode (no tools) and agent mode (full tools) |
 | `/auto` | Toggle auto‑approve mode for this session |
 | `/compact` | Compact context |
 | `/remember <text>` | Save a memory for future sessions |
@@ -82,6 +84,7 @@ Edit ```.craft/config.json``` to set a default model, toggle auto‑approval glo
     "summaryMaxTokens": 1500
   },
   "subagents": {
+    "maxParallel": 5,
     "defaultMaxTimeSeconds": 60,
     "defaultMaxToolCalls": 15,
     "verbose": false

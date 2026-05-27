@@ -2,13 +2,13 @@
 import { z } from 'zod'
 import type { UserConfig } from './utils/config.js'
 import type { PermissionLevel } from './utils/permission.js'
-import { LLMProvider } from './llm/provider.js';
-import { ToolRegistry } from './tools/registry.js';
-import { AgentRuntime } from './agent-runtime.js';
+import { LLMProvider } from './llm/provider.js'
+import { ToolRegistry } from './tools/registry.js'
+import { AgentRuntime } from './agent-runtime.js'
 
 
 // ---------- Approval Types ----------
-export type ApprovalAction = 'approve' | 'deny' | 'always' | 'stop';
+export type ApprovalAction = 'approve' | 'deny' | 'always' | 'stop'
 
 export interface ApprovalRequest {
   toolName: string;
@@ -80,6 +80,7 @@ export interface SessionInfoProps {
   toolsCount: number;
   autoApprove: boolean;
   messagesCount: number;
+  mode: 'chat' | 'agent';
 }
 
 /**
@@ -112,6 +113,8 @@ export interface SessionContext {
   isProcessing: boolean;
   /** The persistent AgentRuntime instance for this session */
   runtime: AgentRuntime;
+  /** Launch mode — chat (no tools) or agent (full tool set) */
+  mode: 'chat' | 'agent';
 }
 
 // ---------- Agent Runtime ----------

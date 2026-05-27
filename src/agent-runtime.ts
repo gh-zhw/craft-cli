@@ -82,6 +82,11 @@ export class AgentRuntime {
     return this.agentName
   }
 
+  updateConfig(config: RuntimeConfig) {
+    this.config = config
+    this.compressionConfig = config.contextCompression
+  }
+
   async run(userMessage: string): Promise<AgentRunResult> {
     // Reset per-run counters
     this.lastTurnUsage = { input: 0, output: 0 }
@@ -148,11 +153,11 @@ export class AgentRuntime {
               this.config.maxTokens,
               callbacks,
             )
-            if (response.text) {
+            if (finalResponse.text) {
               this.events.emit('streamFinished')
             }
 
-            this.addTokenUsage(response.usage)
+            this.addTokenUsage(finalResponse.usage)
 
             this.messages.push({
               role: 'assistant',
