@@ -27,17 +27,21 @@ export interface subagentConfig {
   verbose: boolean;
 }
 
+export interface ToolCallConfig {
+  autoApprove: boolean;
+  autoApproveSafeCommands: boolean;
+  maxConsecutiveDenials: number;
+  maxToolCallsPerTurn: number;
+}
+
 export interface UserConfig {
   provider: 'anthropic' | 'openai';
   baseUrl: string;
   model: string;
   maxTokens: number;
   thinking: ThinkingConfig;
-  autoApprove: boolean;
-  autoApproveSafeCommands: boolean;
   outputStyle: 'stream' | 'markdown';
-  maxConsecutiveDenials: number;
-  maxToolCallsPerTurn: number;
+  toolCall: ToolCallConfig;
   contextCompression: ContextCompressionConfig;
   subagents: subagentConfig;
 }
@@ -48,11 +52,13 @@ const DEFAULT_CONFIG: UserConfig = {
   model: 'deepseek-v4-flash',
   maxTokens: 10_000,
   thinking: { enabled: false },
-  autoApprove: false,
-  autoApproveSafeCommands: true,
   outputStyle: 'stream',
-  maxConsecutiveDenials: 3,
-  maxToolCallsPerTurn: 50,
+  toolCall: {
+    autoApprove: false,
+    autoApproveSafeCommands: true,
+    maxConsecutiveDenials: 3,
+    maxToolCallsPerTurn: 50,
+  },
   contextCompression: {
     enabled: true,
     lightTrimThreshold: 0.80,

@@ -270,7 +270,7 @@ export class AgentRuntime {
         continue
       }
 
-      if (this.config.maxToolCallsPerTurn > 0 && this.totalToolCalls >= this.config.maxToolCallsPerTurn) {
+      if (this.config.toolCall.maxToolCallsPerTurn > 0 && this.totalToolCalls >= this.config.toolCall.maxToolCallsPerTurn) {
         shouldStop = true
         terminationReason = 'max_tool_calls'
         terminationMessage = 'Task terminated: maximum number of tool calls reached.'
@@ -328,7 +328,7 @@ export class AgentRuntime {
               tool_call_id: tc.id,
             })
             shouldExecute = false
-            if (this.config.maxConsecutiveDenials > 0 && this.consecutiveDenials >= this.config.maxConsecutiveDenials) {
+            if (this.config.toolCall.maxConsecutiveDenials > 0 && this.consecutiveDenials >= this.config.toolCall.maxConsecutiveDenials) {
               shouldStop = true
               terminationReason = 'consecutive_denials'
               terminationMessage = 'Task terminated: too many consecutive tool call denials.'
@@ -391,7 +391,10 @@ Do not use any tools that are not explicitly provided.`
 
     const subConfig: RuntimeConfig = {
       ...mainRuntime.config,
-      maxToolCallsPerTurn: options.maxToolCalls ?? mainRuntime.config.maxToolCallsPerTurn,
+      toolCall: {
+        ...mainRuntime.config.toolCall,
+        maxToolCallsPerTurn: options.maxToolCalls ?? mainRuntime.config.toolCall.maxToolCallsPerTurn,
+      },
     }
 
     const subToolContext = {

@@ -100,7 +100,7 @@ async function main() {
   const context: ToolContext = {
     workspaceRoot,
     askApproval: createAskApproval(rl),
-    config: { ...userConfig, autoApprove: userConfig.autoApprove },
+    config: { ...userConfig.toolCall },
     agentRuntime: undefined,
   }
 

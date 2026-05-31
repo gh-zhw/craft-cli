@@ -1,6 +1,6 @@
 // src/types.ts
 import { z } from 'zod'
-import type { UserConfig } from './utils/config.js'
+import type { ToolCallConfig, UserConfig } from './utils/config.js'
 import type { PermissionLevel } from './utils/permission.js'
 import type { AgentRuntime } from './agent-runtime.js'
 
@@ -23,7 +23,7 @@ export interface ApprovalRequest {
 export interface ToolContext {
   workspaceRoot: string;
   askApproval: (request: ApprovalRequest) => Promise<ApprovalAction>;
-  config: UserConfig;
+  config: ToolCallConfig;
   agentRuntime?: AgentRuntime;  // For taskSubagentTool
 }
 
@@ -89,8 +89,8 @@ export interface SessionContext {
   /** Session token counter */
   sessionTotalInputTokens: number;
   sessionTotalOutputTokens: number;
-  /** Original user config (for restoring autoApprove) */
-  userConfig: { autoApprove?: boolean };
+  /** Original user config (for restoring settings) */
+  userConfig: UserConfig;
   /** Session tool whitelist (auto approve) */
   sessionApprovedTools: Set<string>;
   /** Workspace root */

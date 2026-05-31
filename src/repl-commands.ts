@@ -76,7 +76,7 @@ registerCommand({
     // Hot reload config from disk
     const freshConfig = loadConfig(ctx.workspaceRoot)
     ctx.userConfig = freshConfig
-    ctx.runtime.getToolContext().config = { ...freshConfig, autoApprove: freshConfig.autoApprove }
+    ctx.runtime.getToolContext().config = { ...freshConfig.toolCall }
 
     // Hot reload memories and rebuild system prompt
     const memories = loadMemories(ctx.workspaceRoot)

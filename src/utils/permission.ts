@@ -1,6 +1,6 @@
 // src/utils/permission.ts
 import { isDangerousCommand } from './guard.js'
-import type { UserConfig } from './config.js'
+import type { ToolCallConfig } from './config.js'
 
 
 export type PermissionLevel = 'auto' | 'confirm' | 'warn'
@@ -51,7 +51,7 @@ function isSafeCommand(command: string): boolean {
 export function getPermissionLevel(
   toolName: string,
   args: Record<string, any>,
-  config?: UserConfig,
+  config?: ToolCallConfig,
 ): PermissionLevel {
   switch (toolName) {
     case 'read_file':
