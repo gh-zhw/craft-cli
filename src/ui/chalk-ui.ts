@@ -153,17 +153,48 @@ export function printMarkdown(text: string) {
 }
 
 /**
+ * Apply a vertical color gradient to ASCII art text.
+ */
+function applyVerticalGradient(asciiArt: string, startHex: string, endHex: string) {
+  // parse hex to RGB
+  const parseHex = (hex: string) => {
+    const h = hex.slice(1);
+    return {
+      r: parseInt(h.substring(0, 2), 16),
+      g: parseInt(h.substring(2, 4), 16),
+      b: parseInt(h.substring(4, 6), 16)
+    }
+  }
+  const start = parseHex(startHex)
+  const end = parseHex(endHex)
+
+  const lines = asciiArt.split('\n')
+  const total = lines.length
+  const resultLines = []
+
+  for (let i = 0; i < total; i++) {
+    const t = total === 1 ? 0 : i / (total - 1)
+    const r = Math.round(start.r + (end.r - start.r) * t)
+    const g = Math.round(start.g + (end.g - start.g) * t)
+    const b = Math.round(start.b + (end.b - start.b) * t)
+    const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+    resultLines.push(chalk.hex(hex)(lines[i]))
+  }
+  return resultLines.join('\n')
+}
+
+/**
  * Print the craft-cli header/logo at startup.
  */
 const logo = `
-    ██████╗ ██████╗  █████╗ ███████╗████████╗
-    ██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
+   ██████╗██████╗  █████╗ ███████╗████████╗
+  ██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
 ██║     ██████╔╝███████║█████╗     ██║
 ██║     ██╔══██╗██╔══██║██╔══╝     ██║
 ╚██████╗██║  ██║██║  ██║██║        ██║
  ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝`
 export function printAssistantHeader(version: string, workspaceRoot?: string) {
-  const text = chalk.hex('#3171df')(logo)
+  const text = applyVerticalGradient(logo, '#6cc4df', '#dd739f')
   const commandsTips =
     chalk.cyan('/exit') + chalk.gray(' quit · ') +
     chalk.cyan('/reset') + chalk.gray(' reset · ') +
@@ -181,7 +212,7 @@ export function printAssistantHeader(version: string, workspaceRoot?: string) {
 
   console.log(boxen(content, {
     textAlignment: 'center',
-    borderColor: '#3171df',
+    borderColor: '#88b0cf',
     borderStyle: 'bold',
     title: version,
     titleAlignment: 'left',
@@ -244,21 +275,21 @@ export function printStatus(
   const limitStr = `${contextLimit} (${(contextLimit / 1000).toFixed(0)}k)`
   const pctStr = `${pct.toFixed(1)}%`
 
-  const statusText = `Context window: ${usedStr} / ${limitStr} (${pctStr})`
-  let coloredstatusText: string
+  const contextText = `Context window: ${usedStr} / ${limitStr} (${pctStr})`
+  let coloredcontextText: string
   if (pct >= 95) {
-    coloredstatusText = chalk.red(statusText)
+    coloredcontextText = chalk.red(contextText)
   } else if (pct >= 80) {
-    coloredstatusText = chalk.yellow(statusText)
+    coloredcontextText = chalk.yellow(contextText)
   } else {
-    coloredstatusText = chalk.green(statusText)
+    coloredcontextText = chalk.green(contextText)
   }
 
   let modelTokenText = ''
   let coloredModelTokenText = ''
   if (mode) {
     const modeTag = mode === 'agent' ? chalk.magenta('[agent]') : chalk.blue('[chat]')
-    modelTokenText += modeTag + ' '
+    modelTokenText += '[' + mode + '] '
     coloredModelTokenText += modeTag + ' '
   }
   if (model) {
@@ -271,8 +302,8 @@ export function printStatus(
     coloredModelTokenText += chalk.gray(usageText)
   }
 
-  const padding = Math.max(1, getDialogBoxWidth() - modelTokenText.length - statusText.length)
-  console.log(coloredModelTokenText + ' '.repeat(padding) + coloredstatusText)
+  const padding = Math.max(1, getDialogBoxWidth() - modelTokenText.length - contextText.length)
+  console.log(coloredModelTokenText + ' '.repeat(padding) + coloredcontextText)
 }
 
 /**

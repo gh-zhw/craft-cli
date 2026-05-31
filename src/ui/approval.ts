@@ -78,8 +78,10 @@ export function createAskApproval(rl: readline.Interface): (request: ApprovalReq
 
         if (action === 'approve' || action === 'always') {
           resumeSpinner()
-        } else {
-          stopSpinner(chalk.red(' User denied'), { type: 'fail' })
+        } else if (action === 'deny') {
+          stopSpinner(chalk.red('User denied'), { type: 'fail' })
+        } else if (action === 'stop') {
+          stopSpinner(chalk.red('User stopped the reply'), { type: 'fail' })
         }
       })
     })

@@ -123,13 +123,13 @@ async function main() {
   runtime.on('streamFinished', () => finishStream())
   runtime.on('terminated', (reason) => {
     if (reason === 'max_tokens') {
-      console.log(chalk.red('Reply truncated (max tokens reached).'));
+      console.log(chalk.red('Reply truncated (max tokens reached).'))
     } else if (reason === 'consecutive_denials') {
-      console.log(chalk.red('Reply stopped because you denied tool calls.'));
+      console.log(chalk.red('Reply stopped because you denied tool calls.'))
     } else if (reason === 'max_tool_calls') {
-      console.log(chalk.red('Reply stopped because it reached the tool call limit.'));
+      console.log(chalk.red('Reply stopped because it reached the tool call limit.'))
     } else if (reason === 'user_stop') {
-      console.log(chalk.red('Reply stopped by user.'));
+      // console.log(chalk.red('Reply stopped by user.'))
     }
   })
   runtime.on('contextCompacted', (details) => {

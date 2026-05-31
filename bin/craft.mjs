@@ -8,10 +8,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const entry = join(__dirname, '..', 'src', 'index.ts')
 
 // Call tsx with the entry, forwarding all arguments
-const child = spawn('npx', ['tsx', entry], {
+const args = process.argv.slice(2)
+const child = spawn(process.execPath, ['--import', 'tsx', entry, ...args], {
   stdio: 'inherit',
   cwd: process.cwd(),
-  shell: true,
 })
 
 child.on('exit', (code) => process.exit(code))
