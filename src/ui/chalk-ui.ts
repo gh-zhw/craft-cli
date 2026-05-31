@@ -97,6 +97,27 @@ export function finishStream() {
   process.stdout.write('\n')
 }
 
+let markdownBuffer = ''
+
+/**
+ * Buffer a markdown chunk for later rendering.
+ * Call {@link finishMarkdown} to render and flush the buffer.
+ */
+export function printMarkdown(chunk: string) {
+  markdownBuffer += chunk
+}
+
+/**
+ * Render the buffered markdown text to the terminal and clear the buffer.
+ */
+export function finishMarkdown() {
+  if (markdownBuffer) {
+    const rendered = (marked.parse(markdownBuffer, { async: false }) as string).trimEnd()
+    process.stdout.write(rendered + '\n')
+    markdownBuffer = ''
+  }
+}
+
 /**
  * Print a separator and a bold "You" label to mark the start of a user message block.
  */
@@ -143,13 +164,6 @@ export function printAssistantReplyEnd() {
  */
 export function printUserMessage(text: string) {
   console.log(chalk.green('>'), text)
-}
-
-/**
- * Render a Markdown string to terminal.
- */
-export function printMarkdown(text: string) {
-  process.stdout.write(marked.parse(text, { async: false }) as string)
 }
 
 /**

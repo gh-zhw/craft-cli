@@ -23,6 +23,8 @@ import {
   printToolCallStart,
   printToolCallEnd,
   finishStream,
+  printMarkdown,
+  finishMarkdown,
 } from './ui/chalk-ui.js'
 import { loadConfig, loadEnv } from './utils/config.js'
 import { createAskApproval } from './ui/approval.js'
@@ -31,6 +33,7 @@ import { tryExecuteCommand } from './repl-commands.js'
 import chalk from 'chalk'
 import { buildSystemPrompt } from './utils/prompts.js'
 import { executeAgentTurn } from './execute-turn.js'
+import { config } from 'dotenv'
 
 
 const workspaceRoot = process.cwd()
@@ -117,10 +120,22 @@ async function main() {
   })
 
   // Register UI event
-  runtime.on('text', (chunk) => printStreamingText(chunk))
+  runtime.on('text', (chunk) => {
+    if (userConfig.outputStyle === 'markdown') {
+      printMarkdown(chunk)
+    } else {
+      printStreamingText(chunk)
+    }
+  })
+  runtime.on('streamFinished', () => {
+    if (userConfig.outputStyle === 'markdown') {
+      finishMarkdown()
+    } else {
+      finishStream()
+    }
+  })
   runtime.on('toolStart', (name, args) => printToolCallStart(name, args))
   runtime.on('toolEnd', (name, result, error) => printToolCallEnd(name, result, error))
-  runtime.on('streamFinished', () => finishStream())
   runtime.on('terminated', (reason) => {
     if (reason === 'max_tokens') {
       console.log(chalk.red('Reply truncated (max tokens reached).'))

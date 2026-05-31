@@ -73,9 +73,9 @@ registerCommand({
   name: '/reset',
   description: 'Reload config/prompt and reset session',
   execute: (_input, ctx) => {
-    // Hot reload config from disk
+    // Hot reload config from disk (mutate in place so event handler closures see updates)
     const freshConfig = loadConfig(ctx.workspaceRoot)
-    ctx.userConfig = freshConfig
+    Object.assign(ctx.userConfig, freshConfig)
     ctx.runtime.getToolContext().config = { ...freshConfig.toolCall }
 
     // Hot reload memories and rebuild system prompt
