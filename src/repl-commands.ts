@@ -76,17 +76,16 @@ registerCommand({
     // Hot reload config from disk
     const freshConfig = loadConfig(ctx.workspaceRoot)
     ctx.userConfig = freshConfig
-    ctx.toolContext.config = { ...freshConfig, autoApprove: freshConfig.autoApprove }
+    ctx.runtime.getToolContext().config = { ...freshConfig, autoApprove: freshConfig.autoApprove }
 
     // Hot reload memories and rebuild system prompt
     const memories = loadMemories(ctx.workspaceRoot)
-    ctx.systemPrompt = buildSystemPrompt(ctx.workspaceRoot, memories, ctx.mode)
+    ctx.runtime.setSystemPrompt(buildSystemPrompt(ctx.workspaceRoot, memories, ctx.mode))
 
     // Push updated config to runtime and reset conversation
     ctx.runtime.updateConfig(freshConfig)
-    ctx.runtime.reset(ctx.systemPrompt)
+    ctx.runtime.reset()
 
-    ctx.messages = ctx.runtime.getMessages()
     ctx.sessionApprovedTools.clear()
     ctx.sessionTotalInputTokens = 0
     ctx.sessionTotalOutputTokens = 0
@@ -117,9 +116,9 @@ registerCommand({
   name: '/auto',
   description: 'Toggle auto‑approve mode for this session',
   execute: (_input, ctx) => {
-    const current = ctx.toolContext.config.autoApprove
-    ctx.toolContext.config.autoApprove = !current
-    if (ctx.toolContext.config.autoApprove) {
+    const current = ctx.runtime.getToolContext().config.autoApprove
+    ctx.runtime.getToolContext().config.autoApprove = !current
+    if (ctx.runtime.getToolContext().config.autoApprove) {
       console.log(chalk.green('Auto-approve mode ON'))
     } else {
       console.log(chalk.yellow('Auto-approve mode OFF'))
@@ -133,17 +132,17 @@ registerCommand({
   description: 'Display session information',
   execute: (_input, ctx) => {
     printSessionInfo({
-      provider: ctx.provider.getProviderName(),
-      baseurl: ctx.provider.getBaseUrl(),
-      model: ctx.provider.getModelName(),
+      provider: ctx.runtime.getProvider().getProviderName(),
+      baseurl: ctx.runtime.getProvider().getBaseUrl(),
+      model: ctx.runtime.getProvider().getModelName(),
       inputTokensUsed: ctx.sessionTotalInputTokens,
       outputTokensUsed: ctx.sessionTotalOutputTokens,
       currentContext: ctx.runtime.getContextTokens(),
-      contextLimit: ctx.provider.getModelMaxTokens(),
+      contextLimit: ctx.runtime.getProvider().getModelMaxTokens(),
       workspace: ctx.workspaceRoot,
-      toolsCount: ctx.registry.size,
-      autoApprove: ctx.toolContext.config.autoApprove ?? false,
-      messagesCount: ctx.messages.length,
+      toolsCount: ctx.runtime.getRegistry().size,
+      autoApprove: ctx.runtime.getToolContext().config.autoApprove ?? false,
+      messagesCount: ctx.runtime.getMessages().length,
       mode: ctx.mode,
     })
     ctx.rl.prompt()
@@ -170,26 +169,25 @@ registerCommand({
     ctx.mode = modeArg
 
     // Rebuild tool registry
-    ctx.registry.clear()
+    ctx.runtime.getRegistry().clear()
     if (modeArg === 'agent') {
-      registerTool(ctx.registry, readFileTool)
-      registerTool(ctx.registry, writeFileTool)
-      registerTool(ctx.registry, editFileTool)
-      registerTool(ctx.registry, runShellTool)
-      registerTool(ctx.registry, grepTool)
-      registerTool(ctx.registry, globTool)
-      registerTool(ctx.registry, addMemoryTool)
-      registerTool(ctx.registry, webSearchTool)
-      registerTool(ctx.registry, webFetchTool)
-      registerTool(ctx.registry, getCurrentTimeTool)
-      registerTool(ctx.registry, taskSubagentTool)
+      registerTool(ctx.runtime.getRegistry(), readFileTool)
+      registerTool(ctx.runtime.getRegistry(), writeFileTool)
+      registerTool(ctx.runtime.getRegistry(), editFileTool)
+      registerTool(ctx.runtime.getRegistry(), runShellTool)
+      registerTool(ctx.runtime.getRegistry(), grepTool)
+      registerTool(ctx.runtime.getRegistry(), globTool)
+      registerTool(ctx.runtime.getRegistry(), addMemoryTool)
+      registerTool(ctx.runtime.getRegistry(), webSearchTool)
+      registerTool(ctx.runtime.getRegistry(), webFetchTool)
+      registerTool(ctx.runtime.getRegistry(), getCurrentTimeTool)
+      registerTool(ctx.runtime.getRegistry(), taskSubagentTool)
     }
 
     // Rebuild system prompt and reset
     const memories = loadMemories(ctx.workspaceRoot)
-    ctx.systemPrompt = buildSystemPrompt(ctx.workspaceRoot, memories, ctx.mode)
-    ctx.runtime.reset(ctx.systemPrompt)
-    ctx.messages = ctx.runtime.getMessages()
+    ctx.runtime.setSystemPrompt(buildSystemPrompt(ctx.workspaceRoot, memories, ctx.mode))
+    ctx.runtime.reset()
     ctx.sessionApprovedTools.clear()
     ctx.sessionTotalInputTokens = 0
     ctx.sessionTotalOutputTokens = 0

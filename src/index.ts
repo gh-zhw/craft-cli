@@ -145,15 +145,10 @@ async function main() {
 
   const sessionCtx: SessionContext = {
     runtime,
-    messages: runtime.getMessages(),
-    systemPrompt,
     sessionTotalInputTokens: 0,
     sessionTotalOutputTokens: 0,
-    toolContext: context,
     sessionApprovedTools,
     userConfig,
-    provider,
-    registry,
     workspaceRoot,
     rl,
     isProcessing: false,

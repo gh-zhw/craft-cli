@@ -2,9 +2,7 @@
 import { z } from 'zod'
 import type { UserConfig } from './utils/config.js'
 import type { PermissionLevel } from './utils/permission.js'
-import { LLMProvider } from './llm/provider.js'
-import { ToolRegistry } from './tools/registry.js'
-import { AgentRuntime } from './agent-runtime.js'
+import type { AgentRuntime } from './agent-runtime.js'
 
 
 // ---------- Approval Types ----------
@@ -88,23 +86,13 @@ export interface SessionInfoProps {
  * All mutable fields are updated in place.
  */
 export interface SessionContext {
-  /** The current conversation messages (synced from runtime) */
-  messages: Message[];
-  /** Base system prompt (used when resetting) */
-  systemPrompt: string;
   /** Session token counter */
   sessionTotalInputTokens: number;
   sessionTotalOutputTokens: number;
-  /** The tool context (including config) – its config.autoApprove may be changed */
-  toolContext: ToolContext;
   /** Original user config (for restoring autoApprove) */
   userConfig: { autoApprove?: boolean };
   /** Session tool whitelist (auto approve) */
   sessionApprovedTools: Set<string>;
-  /** The LLM provider (for info command) */
-  provider: LLMProvider;
-  /** The tool registry (for info command) */
-  registry: ToolRegistry;
   /** Workspace root */
   workspaceRoot: string;
   /** readline interface (for prompt after command) */

@@ -31,6 +31,7 @@ export class AgentRuntime {
   private sharedApprovedTools: Set<string>
 
   private messages: Message[]
+  private systemPrompt: string
   private tokenCounter: TokenCounter
   private contextTokens = 0
   private lastTurnUsage = { input: 0, output: 0 }
@@ -45,6 +46,7 @@ export class AgentRuntime {
     this.provider = options.provider
     this.registry = options.registry
     this.config = options.config
+    this.systemPrompt = options.systemPrompt
     this.messages = [
       { role: 'system', content: options.systemPrompt },
       ...(options.initialMessages ?? []),
@@ -80,6 +82,26 @@ export class AgentRuntime {
 
   getAgentName() {
     return this.agentName
+  }
+
+  getSystemPrompt(): string {
+    return this.systemPrompt
+  }
+
+  setSystemPrompt(prompt: string): void {
+    this.systemPrompt = prompt
+  }
+
+  getToolContext(): ToolContext {
+    return this.toolContext
+  }
+
+  getProvider(): LLMProvider {
+    return this.provider
+  }
+
+  getRegistry(): ToolRegistry {
+    return this.registry
   }
 
   updateConfig(config: RuntimeConfig) {
@@ -204,9 +226,10 @@ export class AgentRuntime {
   }
 
   // Reset the entire session (clear history and whitelist)
-  reset(systemPrompt: string, initialMessages: Message[] = []) {
+  reset(systemPrompt?: string, initialMessages: Message[] = []) {
+    if (systemPrompt !== undefined) this.systemPrompt = systemPrompt
     this.messages = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: this.systemPrompt },
       ...initialMessages,
     ]
     this.totalInput = 0

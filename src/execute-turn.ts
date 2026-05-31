@@ -23,15 +23,14 @@ export async function executeAgentTurn(
     const result = await ctx.runtime.run(input)
 
     // Sync messages and token counters
-    ctx.messages = ctx.runtime.getMessages()
     ctx.sessionTotalInputTokens += result.totalUsage.input
     ctx.sessionTotalOutputTokens += result.totalUsage.output
 
     printStatus(
       ctx.runtime.getContextTokens(),
-      ctx.provider.getModelMaxTokens(),
+      ctx.runtime.getProvider().getModelMaxTokens(),
       ctx.runtime.getLastTurnUsage(),
-      ctx.provider.getModelName(),
+      ctx.runtime.getProvider().getModelName(),
       ctx.mode,
     )
     printAssistantReplyEnd()
