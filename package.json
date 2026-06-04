@@ -1,6 +1,6 @@
 {
   "name": "craft-cli",
-  "version": "1.0.0",
+  "version": "0.23.9",
   "description": "Hand-crafted agent in your terminal.",
   "main": "index.js",
   "scripts": {
@@ -16,7 +16,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/gh-zhw/craft-cli/issues"

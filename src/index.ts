@@ -56,7 +56,7 @@ for (let i = 0; i < args.length; i++) {
 
 async function main() {
   console.clear()
-  printAssistantHeader('v1.0.0', workspaceRoot)
+  printAssistantHeader('v0.23.9', workspaceRoot)
   console.log()
 
   // Load user configuration (Model priority: options > config > env > default)
